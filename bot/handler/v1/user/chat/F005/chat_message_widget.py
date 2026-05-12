@@ -1,0 +1,48 @@
+"""
+Виджет: ловим сообщения в групповых чатах и каналах → /messages/ingest.
+
+## Трассируемость
+Feature: F005
+Scenarios: SC012, SC013
+"""
+
+from __future__ import annotations
+
+from aiogram import F, Router
+from aiogram.enums import ChatType
+from aiogram.types import Message
+
+from node.chat.code.chat_message_code import ChatMessageCode
+from node.pending.answer.pending_card_answer import PendingCardAnswer
+from node.task.answer.task_created_answer import build_task_card_kb, render_task_card
+from core.loader import get_bot
+
+
+router = Router(name="chat.F005.message")
+
+
+@router.channel_post(F.text | F.caption)
+@router.message(
+    F.chat.type.in_({ChatType.GROUP, ChatType.SUPERGROUP}),
+    F.text | F.caption,
+)
+async def on_chat_message(message: Message) -> None:
+    if message.from_user is not None and message.from_user.is_bot:
+        return
+    code = ChatMessageCode()
+    result = await code.run(message)
+    decision = result["answer_name"]
+
+    if decision == "pending_card_dm":
+        pending = result["data"]["pending"]
+        await PendingCardAnswer().send(
+            owner_chat_id=pending["owner_user_id"], pending=pending
+        )
+    elif decision == "task_created_dm":
+        task = result["data"]["task"]
+        bot = get_bot()
+        await bot.send_message(
+            task["user_id"],
+            "📥 Задача из чата (автоапрув):\n\n" + render_task_card(task),
+            reply_markup=build_task_card_kb(task),
+        )

@@ -1,0 +1,718 @@
+{
+  "product_name": "iHuman Manager",
+  "product_overview": "Telegram-бот для управления задачами CEO/соло-предпринимателя. Бот заводит задачи текстом и голосом, слушает групповые чаты/каналы и автоматически извлекает задачи из обсуждений с подтверждением автора, ведёт статусы (backlog → todo → in_progress → done), напоминает о дедлайнах, рассылает утренний дайджест и группирует задачи по направлениям. Архитектура: бот (aiogram 3, виджеты Trigger/Code/Answer) + бэкенд (FastAPI, слоистая архитектура, PostgreSQL).",
+  "features": [
+    {
+      "feature_id": "F001",
+      "general_info": {
+        "name": "Создание задачи текстом",
+        "overview": "Пользователь отправляет боту текстовое сообщение или вызывает команду /new — бот извлекает заголовок и дедлайн (если не указан — сегодня 18:00 МСК), создаёт задачу со статусом backlog/todo и подтверждает создание."
+      },
+      "goal_and_context": {
+        "business_goal": "Снизить трение при фиксации задач: одно сообщение боту = задача в системе.",
+        "user_problem": "Пользователь забывает мелкие задачи, потому что переключаться в трекер дорого."
+      },
+      "actors_and_roles": {
+        "primary_user": "Владелец задач (CEO, автор бота)",
+        "secondary_user": null,
+        "system_service": "Backend Task Service + LLM Extractor"
+      },
+      "business_rules": [
+        {"rule_id": "BR001", "description": "Если дедлайн не указан в тексте — задача получает дедлайн сегодня 18:00 МСК."},
+        {"rule_id": "BR002", "description": "Если до дедлайна осталось ≤7 дней — статус todo, иначе backlog."},
+        {"rule_id": "BR003", "description": "Заголовок задачи — первые 120 символов исходного текста до конца первого предложения."},
+        {"rule_id": "BR004", "description": "Пустой текст отклоняется с сообщением об ошибке."}
+      ],
+      "acceptance_criteria": [
+        {
+          "scenario_id": "SC001",
+          "user_story": "Как пользователь, я хочу отправить боту '/new Подготовить отчёт до пятницы' и получить созданную задачу с парсингом дедлайна.",
+          "bdd": {
+            "given": "Пользователь авторизован и подписан на бота",
+            "and_preconditions": ["Сегодня среда 12 мая 2026"],
+            "when": "Пользователь отправляет '/new Подготовить отчёт до пятницы'",
+            "then": "Бот создаёт задачу с title='Подготовить отчёт до пятницы', deadline=2026-05-15 18:00 МСК, status='todo'",
+            "and_postconditions": ["Бот присылает карточку с подтверждением и кнопками 'Изменить', 'Удалить', '⭐'"]
+          }
+        },
+        {
+          "scenario_id": "SC002",
+          "user_story": "Как пользователь, я хочу отправить задачу без даты и получить дедлайн на сегодня 18:00.",
+          "bdd": {
+            "given": "Пользователь авторизован",
+            "and_preconditions": ["Текущее время 10:00 МСК"],
+            "when": "Пользователь отправляет '/new Позвонить Алине'",
+            "then": "Создаётся задача с deadline=сегодня 18:00 МСК, status='todo'",
+            "and_postconditions": []
+          }
+        },
+        {
+          "scenario_id": "SC003",
+          "user_story": "Как пользователь, я хочу получить отказ при отправке пустого текста.",
+          "bdd": {
+            "given": "Пользователь авторизован",
+            "and_preconditions": [],
+            "when": "Пользователь отправляет '/new   '",
+            "then": "Бот возвращает ошибку 'Текст задачи не может быть пустым' и задача не создаётся",
+            "and_postconditions": []
+          }
+        }
+      ],
+      "non_functional_requirements": [
+        {"nfr_id": "NFR001", "type": "performance", "description": "Время от отправки сообщения до карточки задачи ≤ 3 сек (без LLM-распознавания дедлайна) / ≤ 6 сек (с LLM)."}
+      ],
+      "test_cases": [
+        {
+          "test_id": "T001",
+          "scenario_id": "SC001",
+          "setup": "POST /api/v1/tasks с user_id=42, text='Подготовить отчёт до пятницы', now=2026-05-12T10:00:00+03:00",
+          "action": "Сервис парсит дедлайн через ExtractorService.parse_deadline",
+          "assertion": "Создана задача с deadline=2026-05-15T18:00:00+03:00, status='todo'",
+          "examples": [
+            {"input": {"text": "Подготовить отчёт до пятницы", "now": "2026-05-12T10:00:00+03:00"}, "expected": {"deadline": "2026-05-15T18:00:00+03:00", "status": "todo"}}
+          ]
+        },
+        {
+          "test_id": "T002",
+          "scenario_id": "SC002",
+          "setup": "POST /api/v1/tasks с text='Позвонить Алине', now=2026-05-12T10:00:00+03:00",
+          "action": "Создание задачи через TaskService.create_from_text",
+          "assertion": "deadline=сегодня 18:00 МСК, status='todo'",
+          "examples": [
+            {"input": {"text": "Позвонить Алине", "now": "2026-05-12T10:00:00+03:00"}, "expected": {"deadline": "2026-05-12T18:00:00+03:00", "status": "todo"}}
+          ]
+        },
+        {
+          "test_id": "T003",
+          "scenario_id": "SC003",
+          "setup": "POST /api/v1/tasks с text='   '",
+          "action": "Создание задачи",
+          "assertion": "HTTP 422, задача не создана",
+          "examples": [
+            {"input": {"text": "   "}, "expected": {"status_code": 422}}
+          ]
+        }
+      ]
+    },
+    {
+      "feature_id": "F002",
+      "general_info": {
+        "name": "Создание задачи голосом",
+        "overview": "Пользователь отправляет боту voice/audio сообщение. Бот скачивает файл, отправляет в Whisper-подобный сервис, получает текст и создаёт задачу как в F001."
+      },
+      "goal_and_context": {
+        "business_goal": "Расширить каналы фиксации задач: голос → задача без печатания.",
+        "user_problem": "На ходу неудобно печатать."
+      },
+      "actors_and_roles": {
+        "primary_user": "Владелец задач",
+        "secondary_user": null,
+        "system_service": "Backend VoiceService (transcribe), TaskService"
+      },
+      "business_rules": [
+        {"rule_id": "BR005", "description": "Голос длиннее 60 сек обрезается до 60 сек на этапе MVP."},
+        {"rule_id": "BR006", "description": "Если расшифровка пустая — ошибка 'Не удалось распознать голос'."}
+      ],
+      "acceptance_criteria": [
+        {
+          "scenario_id": "SC004",
+          "user_story": "Как пользователь, я хочу отправить голосовое 'Подготовить отчёт до пятницы' и получить задачу.",
+          "bdd": {
+            "given": "Пользователь подписан на бота, в env задан OPENAI_API_KEY",
+            "and_preconditions": [],
+            "when": "Пользователь отправляет voice-сообщение длиной 5 сек",
+            "then": "Бот распознаёт текст и создаёт задачу с deadline=2026-05-15 18:00",
+            "and_postconditions": ["В ответе пользователю — расшифровка и карточка задачи"]
+          }
+        },
+        {
+          "scenario_id": "SC005",
+          "user_story": "Как пользователь, я хочу получить ошибку, если голос не удалось распознать.",
+          "bdd": {
+            "given": "Пользователь отправляет тишину или шум",
+            "and_preconditions": [],
+            "when": "Voice-сообщение распознаётся как пустая строка",
+            "then": "Бот отвечает 'Не удалось распознать голос' и не создаёт задачу",
+            "and_postconditions": []
+          }
+        }
+      ],
+      "non_functional_requirements": [
+        {"nfr_id": "NFR002", "type": "performance", "description": "Расшифровка voice ≤30 сек обрабатывается за ≤6 сек."}
+      ],
+      "test_cases": [
+        {
+          "test_id": "T004",
+          "scenario_id": "SC004",
+          "setup": "Мок VoiceService.transcribe → 'Подготовить отчёт до пятницы'",
+          "action": "Бот вызывает /api/v1/voice/transcribe затем /api/v1/tasks",
+          "assertion": "Создана задача с заголовком из расшифровки",
+          "examples": [
+            {"input": {"audio_bytes": "..."}, "expected": {"transcribed_text": "Подготовить отчёт до пятницы"}}
+          ]
+        },
+        {
+          "test_id": "T005",
+          "scenario_id": "SC005",
+          "setup": "Мок VoiceService.transcribe → ''",
+          "action": "Бот вызывает /api/v1/voice/transcribe",
+          "assertion": "HTTP 422, бот отвечает с ошибкой",
+          "examples": [
+            {"input": {"audio_bytes": ""}, "expected": {"status_code": 422}}
+          ]
+        }
+      ]
+    },
+    {
+      "feature_id": "F003",
+      "general_info": {
+        "name": "Жизненный цикл задачи",
+        "overview": "Задача проходит статусы backlog → todo (за неделю до дедлайна) → in_progress → done. Альтернативные пути: cancelled, paused. Переходы доступны через инлайн-кнопки карточки или команду /tasks."
+      },
+      "goal_and_context": {
+        "business_goal": "Чёткий цикл повышает вероятность завершения задачи.",
+        "user_problem": "Без статусов непонятно, где сейчас задача и какие из них активны."
+      },
+      "actors_and_roles": {
+        "primary_user": "Владелец задачи",
+        "secondary_user": null,
+        "system_service": "TaskService.transition_status + SchedulerService"
+      },
+      "business_rules": [
+        {"rule_id": "BR007", "description": "Допустимые статусы: backlog, todo, in_progress, done, cancelled, paused."},
+        {"rule_id": "BR008", "description": "Граф переходов: backlog→todo|in_progress|cancelled; todo→in_progress|paused|done|cancelled; in_progress→paused|done|cancelled; paused→in_progress|cancelled|done; done→todo (re-open); cancelled→todo."},
+        {"rule_id": "BR009", "description": "Когда до дедлайна остаётся ≤7 дней и задача в backlog — SchedulerService автоматически переводит её в todo."}
+      ],
+      "acceptance_criteria": [
+        {
+          "scenario_id": "SC006",
+          "user_story": "Как пользователь, я хочу нажать 'Начать' на карточке backlog/todo и видеть задачу в in_progress.",
+          "bdd": {
+            "given": "Задача T1 в статусе todo",
+            "and_preconditions": [],
+            "when": "Пользователь нажимает inline-кнопку 'Начать'",
+            "then": "Статус становится in_progress, карточка обновляется",
+            "and_postconditions": ["В таблице task_status_changes появилась запись"]
+          }
+        },
+        {
+          "scenario_id": "SC007",
+          "user_story": "Как пользователь, я хочу видеть автоматический перевод backlog→todo за 7 дней до дедлайна.",
+          "bdd": {
+            "given": "Задача в backlog с deadline через 7 дней 1 час",
+            "and_preconditions": ["SchedulerService запускает tick"],
+            "when": "Прошёл 1 час — до дедлайна осталось ровно 7 дней",
+            "then": "Задача переводится в статус todo автоматически",
+            "and_postconditions": []
+          }
+        },
+        {
+          "scenario_id": "SC008",
+          "user_story": "Как пользователь, я хочу видеть отказ при некорректном переходе.",
+          "bdd": {
+            "given": "Задача в статусе done",
+            "and_preconditions": [],
+            "when": "Попытка перевести её в in_progress",
+            "then": "HTTP 422 'Недопустимый переход done→in_progress'",
+            "and_postconditions": []
+          }
+        }
+      ],
+      "non_functional_requirements": [
+        {"nfr_id": "NFR003", "type": "reliability", "description": "SchedulerService срабатывает каждые 5 минут с дрейфом не более 1 минуты."}
+      ],
+      "test_cases": [
+        {
+          "test_id": "T006",
+          "scenario_id": "SC006",
+          "setup": "Создана задача со статусом todo",
+          "action": "PATCH /api/v1/tasks/{id}/status {to: in_progress}",
+          "assertion": "task.status='in_progress', запись в task_status_changes",
+          "examples": [
+            {"input": {"to": "in_progress"}, "expected": {"status": "in_progress"}}
+          ]
+        },
+        {
+          "test_id": "T007",
+          "scenario_id": "SC007",
+          "setup": "Задача backlog с deadline=now+7d-1m",
+          "action": "POST /api/v1/scheduler/tick",
+          "assertion": "Задача в todo",
+          "examples": []
+        },
+        {
+          "test_id": "T008",
+          "scenario_id": "SC008",
+          "setup": "Задача done",
+          "action": "PATCH .../status {to: in_progress}",
+          "assertion": "HTTP 422 ValidationError 'Invalid transition'",
+          "examples": [
+            {"input": {"from": "done", "to": "in_progress"}, "expected": {"status_code": 422}}
+          ]
+        }
+      ]
+    },
+    {
+      "feature_id": "F004",
+      "general_info": {
+        "name": "Избранные задачи",
+        "overview": "Пользователь может отметить задачу звёздочкой (⭐). Избранное хранится per-user, не зависит от owner'а."
+      },
+      "goal_and_context": {
+        "business_goal": "Приоритизация без жёстких приоритетов.",
+        "user_problem": "Среди десятков задач сложно вычленить сегодняшние ключевые."
+      },
+      "actors_and_roles": {
+        "primary_user": "Владелец задач",
+        "secondary_user": null,
+        "system_service": "TaskFavoriteService"
+      },
+      "business_rules": [
+        {"rule_id": "BR010", "description": "(user_id, task_id) уникальны в task_favorites."},
+        {"rule_id": "BR011", "description": "Задачи в избранном направлении автоматически считаются избранными (computed)."}
+      ],
+      "acceptance_criteria": [
+        {
+          "scenario_id": "SC009",
+          "user_story": "Как пользователь, я хочу нажать ⭐ и видеть задачу в /favorites.",
+          "bdd": {
+            "given": "Задача T1 пользователя U1 не в избранном",
+            "and_preconditions": [],
+            "when": "POST /api/v1/tasks/T1/favorite {user_id: U1}",
+            "then": "Появляется запись в task_favorites; GET /api/v1/tasks?is_favorite=true возвращает T1",
+            "and_postconditions": []
+          }
+        },
+        {
+          "scenario_id": "SC010",
+          "user_story": "Как пользователь, я хочу убрать ⭐ повторным нажатием.",
+          "bdd": {
+            "given": "T1 в избранном",
+            "and_preconditions": [],
+            "when": "DELETE /api/v1/tasks/T1/favorite {user_id: U1}",
+            "then": "Запись удалена",
+            "and_postconditions": []
+          }
+        }
+      ],
+      "non_functional_requirements": [],
+      "test_cases": [
+        {
+          "test_id": "T009",
+          "scenario_id": "SC009",
+          "setup": "Создана задача T1 у U1",
+          "action": "POST /tasks/T1/favorite",
+          "assertion": "is_favorite=true в ответе и в БД",
+          "examples": []
+        },
+        {
+          "test_id": "T010",
+          "scenario_id": "SC010",
+          "setup": "T1 в избранном",
+          "action": "DELETE /tasks/T1/favorite",
+          "assertion": "is_favorite=false",
+          "examples": []
+        }
+      ]
+    },
+    {
+      "feature_id": "F005",
+      "general_info": {
+        "name": "Извлечение задач из чата/канала",
+        "overview": "Бот добавлен в групповой чат или канал. Слушает сообщения. Применяет LLM-классификатор с контекстом 10 последних сообщений: если сообщение похоже на задачу — отправляет автору бота карточку на согласование с возможностью редактирования, апрува, отклонения. Если бота тегнули (@hmnd_taskbot) — задача создаётся сразу без согласования."
+      },
+      "goal_and_context": {
+        "business_goal": "Захват задач из коммуникации без ручного ввода.",
+        "user_problem": "Задачи теряются в чатах, потому что никто не вынес их в трекер."
+      },
+      "actors_and_roles": {
+        "primary_user": "Владелец бота (CEO)",
+        "secondary_user": "Участники группового чата",
+        "system_service": "MessageContextService + ExtractorService + PendingTaskService"
+      },
+      "business_rules": [
+        {"rule_id": "BR012", "description": "/setup_chat в группе — подписывает чат, владельцем подписки становится тот, кто вызвал."},
+        {"rule_id": "BR013", "description": "Хранится контекст последних 10 сообщений на чат (sliding window)."},
+        {"rule_id": "BR014", "description": "Если бот тегнут (@username) или ответ цитированием на бот-сообщение — задача apprоввится автоматически."},
+        {"rule_id": "BR015", "description": "Задача всегда падает на user_id владельца бота в текущей версии (без распределения)."},
+        {"rule_id": "BR016", "description": "Дубли по (chat_id, message_id) не обрабатываются повторно."}
+      ],
+      "acceptance_criteria": [
+        {
+          "scenario_id": "SC011",
+          "user_story": "Как CEO, я хочу добавить бота в чат, вызвать /setup_chat и подписать чат.",
+          "bdd": {
+            "given": "Бот добавлен в чат C1 как админ",
+            "and_preconditions": [],
+            "when": "CEO U1 пишет в чате /setup_chat",
+            "then": "В tg_chats_subscribed появляется (chat_id=C1, owner_user_id=U1, enabled=true)",
+            "and_postconditions": ["Бот отвечает 'Чат подписан'"]
+          }
+        },
+        {
+          "scenario_id": "SC012",
+          "user_story": "Как CEO, я хочу получать карточку-согласование на задачу, упомянутую в чате.",
+          "bdd": {
+            "given": "Чат C1 подписан, сообщение 'надо собрать отчёт к пятнице'",
+            "and_preconditions": ["LLM классифицирует как task"],
+            "when": "Сообщение попадает в /api/v1/messages/ingest",
+            "then": "Создаётся PendingTask, бот отправляет CEO карточку с inline-кнопками 'Редактировать', 'Принять', 'Отклонить'",
+            "and_postconditions": []
+          }
+        },
+        {
+          "scenario_id": "SC013",
+          "user_story": "Как CEO, я хочу тегнуть @hmnd_taskbot в сообщении и получить автоапрув задачи.",
+          "bdd": {
+            "given": "Чат C1 подписан",
+            "and_preconditions": [],
+            "when": "Кто-то пишет '@hmnd_taskbot Подготовить презентацию до пятницы'",
+            "then": "PendingTask сразу апрувится → создаётся Task без согласования",
+            "and_postconditions": ["Бот отвечает в чат 'Задача создана'"]
+          }
+        },
+        {
+          "scenario_id": "SC014",
+          "user_story": "Как CEO, я хочу отредактировать черновик задачи перед апрувом.",
+          "bdd": {
+            "given": "Есть PendingTask со source_text='собрать отчёт'",
+            "and_preconditions": [],
+            "when": "CEO нажимает 'Редактировать' и присылает новый title='Собрать квартальный отчёт' и deadline='2026-05-20'",
+            "then": "PendingTask.draft обновляется, при следующем апруве создаётся Task с новыми значениями",
+            "and_postconditions": []
+          }
+        }
+      ],
+      "non_functional_requirements": [
+        {"nfr_id": "NFR004", "type": "performance", "description": "Time-to-card ≤5 минут (NFR из SPEC v0.1)."},
+        {"nfr_id": "NFR005", "type": "privacy", "description": "Бот читает только подписанные чаты, не персональные."}
+      ],
+      "test_cases": [
+        {
+          "test_id": "T011",
+          "scenario_id": "SC011",
+          "setup": "Подписан бот в чате",
+          "action": "POST /api/v1/chats/subscribe {chat_id, owner_user_id}",
+          "assertion": "Запись создана, enabled=true",
+          "examples": []
+        },
+        {
+          "test_id": "T012",
+          "scenario_id": "SC012",
+          "setup": "Чат подписан, мок ExtractorService.classify → is_task=true",
+          "action": "POST /api/v1/messages/ingest",
+          "assertion": "Создан PendingTask, нет Task до апрува",
+          "examples": []
+        },
+        {
+          "test_id": "T013",
+          "scenario_id": "SC013",
+          "setup": "Сообщение с tag=@hmnd_taskbot",
+          "action": "POST /api/v1/messages/ingest {is_bot_mentioned: true}",
+          "assertion": "Сразу создан Task, PendingTask.approved=true",
+          "examples": []
+        },
+        {
+          "test_id": "T014",
+          "scenario_id": "SC014",
+          "setup": "Есть PendingTask",
+          "action": "PUT /api/v1/pending-tasks/{id} {draft: {...}}",
+          "assertion": "draft обновлён",
+          "examples": []
+        }
+      ]
+    },
+    {
+      "feature_id": "F006",
+      "general_info": {
+        "name": "Уведомление о дедлайне",
+        "overview": "Когда наступает дедлайн задачи и она не done/cancelled — бот присылает DM-карточку с действиями: 'Поставить на паузу', 'Изменить дедлайн', 'Отменить', 'Завершить'."
+      },
+      "goal_and_context": {
+        "business_goal": "Не давать задачам молча гнить после дедлайна.",
+        "user_problem": "Задачи теряются после прохода дедлайна."
+      },
+      "actors_and_roles": {
+        "primary_user": "Владелец задачи",
+        "secondary_user": null,
+        "system_service": "SchedulerService + NotificationService"
+      },
+      "business_rules": [
+        {"rule_id": "BR017", "description": "Уведомление отсылается один раз в момент наступления дедлайна (с допуском tick ±5 мин)."},
+        {"rule_id": "BR018", "description": "Запись в notification_log создаётся для каждого факта отправки уведомления, повторных отправок нет."}
+      ],
+      "acceptance_criteria": [
+        {
+          "scenario_id": "SC015",
+          "user_story": "Как пользователь, я хочу получить уведомление в момент дедлайна для незавершённой задачи.",
+          "bdd": {
+            "given": "Задача T1, deadline=2026-05-12T15:00, status=in_progress",
+            "and_preconditions": ["SchedulerService запускается в 15:00"],
+            "when": "Tick срабатывает",
+            "then": "Бот отправляет DM с карточкой и 4 кнопками, в notification_log запись deadline_notice",
+            "and_postconditions": []
+          }
+        },
+        {
+          "scenario_id": "SC016",
+          "user_story": "Как пользователь, я хочу через карточку дедлайна перенести дедлайн на завтра.",
+          "bdd": {
+            "given": "Получено уведомление о дедлайне",
+            "and_preconditions": [],
+            "when": "Пользователь нажимает 'Изменить дедлайн → завтра 18:00'",
+            "then": "Task.deadline=завтра 18:00 МСК, status=todo",
+            "and_postconditions": []
+          }
+        },
+        {
+          "scenario_id": "SC017",
+          "user_story": "Как пользователь, я не хочу получать повторное уведомление.",
+          "bdd": {
+            "given": "Уведомление уже отправлено",
+            "and_preconditions": [],
+            "when": "Следующий tick через 5 минут",
+            "then": "Второе уведомление не отправляется",
+            "and_postconditions": []
+          }
+        }
+      ],
+      "non_functional_requirements": [],
+      "test_cases": [
+        {
+          "test_id": "T015",
+          "scenario_id": "SC015",
+          "setup": "Задача с deadline=now",
+          "action": "POST /api/v1/scheduler/tick",
+          "assertion": "Создана NotificationLog запись, бот вызвал send_dm",
+          "examples": []
+        },
+        {
+          "test_id": "T016",
+          "scenario_id": "SC016",
+          "setup": "Задача с просроченным deadline",
+          "action": "PATCH /api/v1/tasks/{id} {deadline: завтра}",
+          "assertion": "deadline обновлён, status='todo'",
+          "examples": []
+        },
+        {
+          "test_id": "T017",
+          "scenario_id": "SC017",
+          "setup": "Notification уже отправлен",
+          "action": "Второй tick",
+          "assertion": "Нет новых записей в notification_log",
+          "examples": []
+        }
+      ]
+    },
+    {
+      "feature_id": "F007",
+      "general_info": {
+        "name": "Утренний дайджест 09:00 МСК",
+        "overview": "Каждый день в 09:00 МСК бот присылает пользователю DM с задачами на сегодня (deadline=сегодня OR planned_start_date=сегодня), сгруппированными по статусу и направлению."
+      },
+      "goal_and_context": {
+        "business_goal": "Старт дня с фокуса.",
+        "user_problem": "В начале дня сложно сходу понять, что в приоритете."
+      },
+      "actors_and_roles": {
+        "primary_user": "Владелец задач",
+        "secondary_user": null,
+        "system_service": "SchedulerService → DigestService"
+      },
+      "business_rules": [
+        {"rule_id": "BR019", "description": "Дайджест отправляется ровно в 09:00 МСК (Europe/Moscow), даже если пользователь в другом таймзоне."},
+        {"rule_id": "BR020", "description": "Если на сегодня задач нет — отправляется сообщение 'На сегодня задач нет, добавьте /new'."}
+      ],
+      "acceptance_criteria": [
+        {
+          "scenario_id": "SC018",
+          "user_story": "Как пользователь, я хочу получить в 09:00 МСК сообщение со списком задач на сегодня.",
+          "bdd": {
+            "given": "У пользователя U1 есть 3 задачи на сегодня",
+            "and_preconditions": ["Сейчас 09:00 МСК"],
+            "when": "SchedulerService отправляет триггер DigestService.send_morning",
+            "then": "U1 получает DM с группировкой задач + кнопкой 'Начать день'",
+            "and_postconditions": []
+          }
+        },
+        {
+          "scenario_id": "SC019",
+          "user_story": "Как пользователь без задач на сегодня, я хочу получить дружеское напоминание.",
+          "bdd": {
+            "given": "У U1 нет задач на сегодня",
+            "and_preconditions": [],
+            "when": "Tick дайджеста",
+            "then": "Получает сообщение 'На сегодня задач нет, добавьте /new'",
+            "and_postconditions": []
+          }
+        }
+      ],
+      "non_functional_requirements": [],
+      "test_cases": [
+        {
+          "test_id": "T018",
+          "scenario_id": "SC018",
+          "setup": "Создано 3 задачи на сегодня",
+          "action": "GET /api/v1/digest/{user_id}",
+          "assertion": "Возвращает 3 задачи в группах",
+          "examples": []
+        },
+        {
+          "test_id": "T019",
+          "scenario_id": "SC019",
+          "setup": "Нет задач",
+          "action": "GET /api/v1/digest/{user_id}",
+          "assertion": "tasks=[], is_empty=true",
+          "examples": []
+        }
+      ]
+    },
+    {
+      "feature_id": "F008",
+      "general_info": {
+        "name": "Планирование задач в день",
+        "overview": "Пользователь может назначить planned_start_date, planned_start_time и planned_end_time. По умолчанию длительность — 30 мин. Дедлайн (deadline) — отдельное поле."
+      },
+      "goal_and_context": {
+        "business_goal": "Перейти от списка задач к расписанию дня.",
+        "user_problem": "Список не отвечает на вопрос 'когда я это делаю'."
+      },
+      "actors_and_roles": {
+        "primary_user": "Владелец задач",
+        "secondary_user": null,
+        "system_service": "TaskService.schedule"
+      },
+      "business_rules": [
+        {"rule_id": "BR021", "description": "Если задан planned_start_at и не задан planned_end_at — planned_end_at = planned_start_at + 30 мин."},
+        {"rule_id": "BR022", "description": "planned_end_at должен быть > planned_start_at."},
+        {"rule_id": "BR023", "description": "deadline и planned_start_at независимы; planned_start_at может быть и раньше, и позже deadline."}
+      ],
+      "acceptance_criteria": [
+        {
+          "scenario_id": "SC020",
+          "user_story": "Как пользователь, я хочу назначить задаче planned_start_at=сегодня 14:00 и видеть planned_end_at=14:30 автоматически.",
+          "bdd": {
+            "given": "Задача T1 без планирования",
+            "and_preconditions": [],
+            "when": "PUT /api/v1/tasks/T1 {planned_start_at: '2026-05-12T14:00'}",
+            "then": "planned_start_at=14:00, planned_end_at=14:30",
+            "and_postconditions": []
+          }
+        },
+        {
+          "scenario_id": "SC021",
+          "user_story": "Как пользователь, я хочу получить ошибку при planned_end_at <= planned_start_at.",
+          "bdd": {
+            "given": "Задача T1",
+            "and_preconditions": [],
+            "when": "PUT с planned_start_at=14:00, planned_end_at=13:00",
+            "then": "HTTP 422 'planned_end_at must be greater than planned_start_at'",
+            "and_postconditions": []
+          }
+        }
+      ],
+      "non_functional_requirements": [],
+      "test_cases": [
+        {
+          "test_id": "T020",
+          "scenario_id": "SC020",
+          "setup": "Задача T1",
+          "action": "PUT /tasks/T1 {planned_start_at:'2026-05-12T14:00'}",
+          "assertion": "planned_end_at='2026-05-12T14:30'",
+          "examples": []
+        },
+        {
+          "test_id": "T021",
+          "scenario_id": "SC021",
+          "setup": "Задача T1",
+          "action": "PUT с инвалидными временами",
+          "assertion": "HTTP 422",
+          "examples": []
+        }
+      ]
+    },
+    {
+      "feature_id": "F009",
+      "general_info": {
+        "name": "Направления",
+        "overview": "Пользователь ведёт список направлений (категорий). К каждой задаче можно привязать ноль или одно направление. Направление можно сделать избранным — тогда все задачи в нём автоматически считаются избранными в любых выборках."
+      },
+      "goal_and_context": {
+        "business_goal": "Группировка задач по проектам/областям.",
+        "user_problem": "Без группировки сложно фильтровать."
+      },
+      "actors_and_roles": {
+        "primary_user": "Владелец задач",
+        "secondary_user": null,
+        "system_service": "DirectionService"
+      },
+      "business_rules": [
+        {"rule_id": "BR024", "description": "(user_id, name) уникальны в directions (case-insensitive)."},
+        {"rule_id": "BR025", "description": "Удаление направления переводит задачи в direction_id=null (FK SET NULL)."},
+        {"rule_id": "BR026", "description": "Если направление избранное (is_favorite=true), все его задачи отображаются как избранные при чтении."}
+      ],
+      "acceptance_criteria": [
+        {
+          "scenario_id": "SC022",
+          "user_story": "Как пользователь, я хочу создать направление 'Продажи' и привязать к нему задачу.",
+          "bdd": {
+            "given": "U1 без направлений",
+            "and_preconditions": [],
+            "when": "POST /api/v1/directions {name:'Продажи'} затем PUT /tasks/T1 {direction_id:D1}",
+            "then": "Direction создан, у задачи direction_id=D1",
+            "and_postconditions": []
+          }
+        },
+        {
+          "scenario_id": "SC023",
+          "user_story": "Как пользователь, я хочу сделать направление избранным.",
+          "bdd": {
+            "given": "Direction D1, у пользователя 2 задачи в D1, не отмеченные ⭐",
+            "and_preconditions": [],
+            "when": "POST /api/v1/directions/D1/favorite",
+            "then": "D1.is_favorite=true; GET /api/v1/tasks?is_favorite=true возвращает обе задачи",
+            "and_postconditions": []
+          }
+        },
+        {
+          "scenario_id": "SC024",
+          "user_story": "Как пользователь, я не могу создать два направления с одинаковым именем.",
+          "bdd": {
+            "given": "Direction 'Продажи' уже есть",
+            "and_preconditions": [],
+            "when": "POST /api/v1/directions {name:'продажи'}",
+            "then": "HTTP 409 'Direction already exists'",
+            "and_postconditions": []
+          }
+        }
+      ],
+      "non_functional_requirements": [],
+      "test_cases": [
+        {
+          "test_id": "T022",
+          "scenario_id": "SC022",
+          "setup": "Пользователь U1",
+          "action": "POST /directions затем PUT /tasks",
+          "assertion": "direction_id у задачи проставлен",
+          "examples": []
+        },
+        {
+          "test_id": "T023",
+          "scenario_id": "SC023",
+          "setup": "D1 с 2 задачами",
+          "action": "POST /directions/D1/favorite + GET /tasks?is_favorite=true",
+          "assertion": "Обе задачи в выборке",
+          "examples": []
+        },
+        {
+          "test_id": "T024",
+          "scenario_id": "SC024",
+          "setup": "Direction 'Продажи' существует",
+          "action": "POST с name='продажи'",
+          "assertion": "HTTP 409",
+          "examples": []
+        }
+      ]
+    }
+  ]
+}

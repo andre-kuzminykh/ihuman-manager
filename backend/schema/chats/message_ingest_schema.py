@@ -1,0 +1,29 @@
+"""
+## Трассируемость
+Feature: F005
+Scenarios: SC012, SC013
+"""
+
+from __future__ import annotations
+
+from datetime import datetime
+from typing import Literal
+
+from pydantic import BaseModel
+
+
+class MessageIngestSchema(BaseModel):
+    chat_id: int
+    message_id: int
+    sender_user_id: int | None = None
+    sender_username: str | None = None
+    text: str
+    sent_at: datetime
+    is_bot_mentioned: bool = False
+
+
+class MessageIngestResultSchema(BaseModel):
+    decision: Literal["ignored", "pending_created", "auto_approved", "duplicate", "not_subscribed"]
+    pending_task_id: int | None = None
+    task_id: int | None = None
+    detail: str | None = None
