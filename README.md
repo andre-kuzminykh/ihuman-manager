@@ -43,7 +43,7 @@ Telegram-бот + бэкенд для управления задачами CEO/
    cd backend
    pip install -r requirements.txt
    alembic upgrade head
-   uvicorn main:app --reload --port 8000
+   uvicorn main:app --reload --port 8015
    ```
 3. В новой сессии — бота:
    ```bash
@@ -68,7 +68,7 @@ cd bot && pytest -q
 - `BOT_TOKEN` — токен Telegram-бота (BotFather)
 - `BOT_USERNAME` — username бота без `@`, нужно для определения тегов в чатах
 - `OPENAI_API_KEY` — для LLM-извлечения задач и распознавания голоса
-- `BACKEND_URL` — куда бот ходит за API (по умолчанию `http://localhost:8000`)
+- `BACKEND_URL` — куда бот ходит за API (по умолчанию `http://localhost:8015`)
 - `DB_*` — креды Postgres
 
 ## Структура

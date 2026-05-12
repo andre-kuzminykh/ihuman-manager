@@ -16,7 +16,7 @@ class Settings(BaseSettings):
     BOT_USERNAME: str = "ihuman_manager_bot"
     BOT_OWNER_USERNAME: str = ""
 
-    BACKEND_URL: str = "http://localhost:8000"
+    BACKEND_URL: str = "http://localhost:8015"
     BACKEND_API_PREFIX: str = "/api/v1"
 
     MEDIA_DIR: Path = Path("./data/media")
