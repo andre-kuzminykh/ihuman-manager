@@ -1,0 +1,20 @@
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+.coverage
+htmlcov/
+.venv/
+venv/
+
+# не пихаем локальные креды в образ — они приходят из docker-compose env
+.env
+.env.local
+.env.*.local
+
+# тесты не нужны в проде
+tests/
+
+# IDE
+.vscode/
+.idea/

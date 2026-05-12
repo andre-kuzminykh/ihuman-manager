@@ -77,9 +77,15 @@ async def _send_evening_digest(item: dict[str, Any]) -> None:
     )
 
 
-async def run_scheduler_loop(interval_seconds: int) -> None:
+async def run_scheduler_loop(interval_seconds: int, *, initial_delay: int = 5) -> None:
     api = SchedulerAPI()
-    log.info("Scheduler loop started, interval=%s sec", interval_seconds)
+    log.info(
+        "Scheduler loop starting in %s sec (interval=%s sec)",
+        initial_delay,
+        interval_seconds,
+    )
+    # ждём, пока backend поднимется и docker DNS пропишет имя сервиса
+    await asyncio.sleep(initial_delay)
     while True:
         try:
             result = await api.tick()

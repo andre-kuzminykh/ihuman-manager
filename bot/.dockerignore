@@ -1,0 +1,19 @@
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+.coverage
+htmlcov/
+.venv/
+venv/
+
+# локальные креды — только из docker-compose env
+.env
+.env.local
+.env.*.local
+
+tests/
+
+# IDE
+.vscode/
+.idea/
