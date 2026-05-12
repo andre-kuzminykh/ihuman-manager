@@ -29,6 +29,18 @@ async def on_digest(message: Message) -> None:
     await DigestAnswer().run(event=message, user_lang="ru", data=result["data"])
 
 
+@router.message(Command("evening"))
+async def on_evening(message: Message) -> None:
+    if message.from_user is None:
+        return
+    from service.api.digest_api import DigestAPI
+
+    digest = await DigestAPI().evening_for_user(message.from_user.id)
+    await DigestAnswer().run(
+        event=message, user_lang="ru", data={"digest": digest, "evening": True}
+    )
+
+
 @router.callback_query(DigestActionCallback.filter(F.action == "refresh"))
 async def on_refresh(cb: CallbackQuery, callback_data: DigestActionCallback) -> None:
     if cb.from_user is None:

@@ -1,9 +1,9 @@
 """
-DigestService — собирает дайджест на день.
+DigestService — собирает утренний и вечерний дайджест.
 
 ## Трассируемость
-Feature: F007, F008
-Scenarios: SC018, SC019, SC020
+Feature: F007, F008, F011
+Scenarios: SC018, SC019, SC020, SC028
 """
 
 from __future__ import annotations
@@ -77,7 +77,7 @@ class DigestService:
             label = self._group_label(t["status"])
             groups_raw[label].append(t)
 
-        order = ["В работе", "К сегодня", "Backlog", "Пауза"]
+        order = ["В работе", "К сегодня", "Backlog", "Пауза", "Заблокировано"]
         groups = [
             DigestGroupSchema(
                 label=label,
@@ -105,4 +105,75 @@ class DigestService:
             return "Backlog"
         if status == TaskStatus.PAUSED.value:
             return "Пауза"
+        if status == TaskStatus.BLOCKED.value:
+            return "Заблокировано"
         return "Прочее"
+
+    async def build_evening(
+        self,
+        session: AsyncSession,
+        *,
+        user_id: int,
+        day: datetime | None = None,
+    ) -> DigestResponseSchema:
+        """Вечерний дайджест: что сделано / в работе / просрочено.
+
+        ## Трассируемость
+        Feature: F011
+        Scenarios: SC028
+        """
+        day_start = start_of_msk_day(day)
+        day_end = end_of_msk_day(day)
+
+        # Завершено сегодня — completed_at в окне дня.
+        done_today = await self._task_service.list_for_user(
+            session, user_id, statuses=[TaskStatus.DONE]
+        )
+        done_today = [
+            t
+            for t in done_today
+            if t.get("completed_at")
+            and day_start <= t["completed_at"].astimezone(MSK) <= day_end
+        ]
+
+        # В работе.
+        in_progress = await self._task_service.list_for_user(
+            session, user_id, statuses=[TaskStatus.IN_PROGRESS]
+        )
+
+        # Просрочки — активные с deadline < now.
+        overdue = await self._task_service.list_for_user(
+            session,
+            user_id,
+            deadline_before=day_end,
+            statuses=[
+                TaskStatus.BACKLOG,
+                TaskStatus.TODO,
+                TaskStatus.IN_PROGRESS,
+                TaskStatus.PAUSED,
+                TaskStatus.BLOCKED,
+            ],
+        )
+        # отфильтруем те, что не на сегодня/раньше
+        overdue = [
+            t for t in overdue if t.get("deadline") and t["deadline"].astimezone(MSK) <= day_end
+        ]
+
+        groups_raw = {
+            "✅ Завершено сегодня": done_today,
+            "🔵 В работе": in_progress,
+            "⏱ Просрочено": [t for t in overdue if t["id"] not in {x["id"] for x in done_today}],
+        }
+        groups = [
+            DigestGroupSchema(label=label, tasks=[TaskListItemSchema(**t) for t in tasks])
+            for label, tasks in groups_raw.items()
+            if tasks
+        ]
+        total = sum(len(g.tasks) for g in groups)
+        return DigestResponseSchema(
+            user_id=user_id,
+            date=day_start.date(),
+            is_empty=total == 0,
+            groups=groups,
+            total=total,
+        )

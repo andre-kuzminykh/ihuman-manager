@@ -18,6 +18,7 @@ from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
 from aiogram.types import Message
 
+from node.task.answer.duplicate_found_answer import DuplicateFoundAnswer
 from node.task.answer.task_created_answer import TaskCreatedAnswer
 from node.task.answer.task_empty_error_answer import TaskEmptyErrorAnswer
 from node.task.code.new_task_code import NewTaskCode
@@ -29,6 +30,7 @@ router = Router(name="task.F001.new")
 _ANSWER_REGISTRY = {
     "task_created": TaskCreatedAnswer(),
     "task_empty_error": TaskEmptyErrorAnswer(),
+    "duplicate_found": DuplicateFoundAnswer(),
 }
 
 

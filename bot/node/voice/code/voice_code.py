@@ -42,4 +42,9 @@ class VoiceCode:
             )
         except APIError as exc:
             return {"answer_name": "voice_failed", "data": {"message": exc.message}}
+        if task.get("is_duplicate"):
+            return {
+                "answer_name": "duplicate_found",
+                "data": {"task": task, "raw_text": text},
+            }
         return {"answer_name": "task_created", "data": {"task": task, "transcribed_text": text}}

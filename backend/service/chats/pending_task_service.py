@@ -102,7 +102,7 @@ class PendingTaskService:
         return obj
 
     async def approve(
-        self, session: AsyncSession, pending_id: int
+        self, session: AsyncSession, pending_id: int, *, force: bool = False
     ) -> PendingTaskModel:
         obj = await self.get_or_404(session, pending_id)
         if obj.approved:
@@ -117,11 +117,12 @@ class PendingTaskService:
             else None
         )
         direction_id = draft.get("direction_id")
-        task = await self._task_service.create_from_text(
+        task, _is_duplicate = await self._task_service.create_or_find_duplicate(
             session,
             user_id=obj.owner_user_id,
             text=text,
             chat_id=obj.chat_id,
+            force=force,
             source_message_id=obj.message_id,
             source_kind=TaskSource.CHAT,
             title=title,

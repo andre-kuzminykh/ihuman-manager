@@ -29,33 +29,38 @@ def _fmt_deadline(value: str | None) -> str:
 def build_task_card_kb(task: dict) -> InlineKeyboardMarkup:
     rows: list[list[InlineKeyboardButton]] = []
     status = task.get("status")
+    tid = task["id"]
     if status in {"backlog", "todo"}:
         rows.append([
             InlineKeyboardButton(
                 text="▶️ Начать",
-                callback_data=TaskActionCallback(task_id=task["id"], action="start").pack(),
+                callback_data=TaskActionCallback(task_id=tid, action="start").pack(),
             )
         ])
     if status in {"todo", "in_progress"}:
         rows.append([
             InlineKeyboardButton(
                 text="⏸ Пауза",
-                callback_data=TaskActionCallback(task_id=task["id"], action="pause").pack(),
+                callback_data=TaskActionCallback(task_id=tid, action="pause").pack(),
+            ),
+            InlineKeyboardButton(
+                text="🛑 Заблок.",
+                callback_data=TaskActionCallback(task_id=tid, action="block").pack(),
             ),
             InlineKeyboardButton(
                 text="✅ Готово",
-                callback_data=TaskActionCallback(task_id=task["id"], action="done").pack(),
+                callback_data=TaskActionCallback(task_id=tid, action="done").pack(),
             ),
         ])
-    if status == "paused":
+    if status in {"paused", "blocked"}:
         rows.append([
             InlineKeyboardButton(
                 text="▶️ Продолжить",
-                callback_data=TaskActionCallback(task_id=task["id"], action="start").pack(),
+                callback_data=TaskActionCallback(task_id=tid, action="start").pack(),
             ),
             InlineKeyboardButton(
                 text="✅ Готово",
-                callback_data=TaskActionCallback(task_id=task["id"], action="done").pack(),
+                callback_data=TaskActionCallback(task_id=tid, action="done").pack(),
             ),
         ])
     fav_text = "⭐ Убрать" if task.get("is_favorite") else "⭐ В избранное"
@@ -63,11 +68,11 @@ def build_task_card_kb(task: dict) -> InlineKeyboardMarkup:
     rows.append([
         InlineKeyboardButton(
             text=fav_text,
-            callback_data=TaskActionCallback(task_id=task["id"], action=fav_action).pack(),
+            callback_data=TaskActionCallback(task_id=tid, action=fav_action).pack(),
         ),
         InlineKeyboardButton(
             text="🚫 Отменить",
-            callback_data=TaskActionCallback(task_id=task["id"], action="cancel").pack(),
+            callback_data=TaskActionCallback(task_id=tid, action="cancel").pack(),
         ),
     ])
     return InlineKeyboardMarkup(inline_keyboard=rows)

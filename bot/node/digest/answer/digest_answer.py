@@ -26,10 +26,11 @@ def _fmt(value: str | None) -> str:
         return value
 
 
-def render_digest(digest: dict) -> str:
+def render_digest(digest: dict, *, evening: bool = False) -> str:
+    title = vocab.EVENING_DIGEST_TITLE if evening else vocab.MORNING_DIGEST_TITLE
     if digest.get("is_empty"):
-        return f"{vocab.MORNING_DIGEST_TITLE}\n\n{vocab.NO_TASKS_TODAY}"
-    lines = [vocab.MORNING_DIGEST_TITLE, ""]
+        return f"{title}\n\n{vocab.NO_TASKS_TODAY}"
+    lines = [title, ""]
     for group in digest.get("groups", []):
         lines.append(f"<b>{group['label']}</b>")
         for t in group.get("tasks", []):
@@ -59,11 +60,18 @@ def build_digest_kb() -> InlineKeyboardMarkup:
 
 
 class DigestAnswer:
-    async def send(self, *, owner_chat_id: int, digest: dict) -> None:
+    async def send(
+        self, *, owner_chat_id: int, digest: dict, evening: bool = False
+    ) -> None:
         bot = get_bot()
         await bot.send_message(
-            owner_chat_id, render_digest(digest), reply_markup=build_digest_kb()
+            owner_chat_id,
+            render_digest(digest, evening=evening),
+            reply_markup=build_digest_kb(),
         )
 
     async def run(self, *, event: Message, user_lang: str = "ru", data: dict) -> None:
-        await event.answer(render_digest(data["digest"]), reply_markup=build_digest_kb())
+        await event.answer(
+            render_digest(data["digest"], evening=data.get("evening", False)),
+            reply_markup=build_digest_kb(),
+        )

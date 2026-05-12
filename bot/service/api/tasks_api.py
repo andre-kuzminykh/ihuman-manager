@@ -26,11 +26,13 @@ class TasksAPI(BaseAPI):
         title: str | None = None,
         deadline: datetime | None = None,
         direction_id: int | None = None,
+        force: bool = False,
     ) -> dict:
         body: dict[str, Any] = {
             "user_id": user_id,
             "text": text,
             "source_kind": source_kind,
+            "force": force,
         }
         if chat_id is not None:
             body["chat_id"] = chat_id

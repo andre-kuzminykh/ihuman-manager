@@ -69,6 +69,14 @@ async def _send_digest(item: dict[str, Any]) -> None:
     await DigestAnswer().send(owner_chat_id=item["user_id"], digest=item["digest"])
 
 
+async def _send_evening_digest(item: dict[str, Any]) -> None:
+    from node.digest.answer.digest_answer import DigestAnswer
+
+    await DigestAnswer().send(
+        owner_chat_id=item["user_id"], digest=item["digest"], evening=True
+    )
+
+
 async def run_scheduler_loop(interval_seconds: int) -> None:
     api = SchedulerAPI()
     log.info("Scheduler loop started, interval=%s sec", interval_seconds)
@@ -84,7 +92,12 @@ async def run_scheduler_loop(interval_seconds: int) -> None:
                 try:
                     await _send_digest(d)
                 except Exception:
-                    log.exception("send digest failed")
+                    log.exception("send morning digest failed")
+            for d in result.get("evening_digests", []):
+                try:
+                    await _send_evening_digest(d)
+                except Exception:
+                    log.exception("send evening digest failed")
         except Exception:
             log.exception("scheduler tick failed")
         await asyncio.sleep(interval_seconds)

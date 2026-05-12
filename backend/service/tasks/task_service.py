@@ -26,6 +26,7 @@ from repository.tasks.task_favorite_repository import TaskFavoriteRepository
 from repository.tasks.task_repository import TaskRepository
 from repository.tasks.task_status_change_repository import TaskStatusChangeRepository
 from repository.directions.direction_repository import DirectionRepository
+from service.dedup.task_dedup_service import TaskDedupService
 from service.extractor.extractor_service import ExtractorService
 from service.utils.time_utils import MSK, now_msk, today_msk_default_deadline
 
@@ -72,12 +73,14 @@ class TaskService:
         favorite_repo: TaskFavoriteRepository | None = None,
         direction_repo: DirectionRepository | None = None,
         extractor: ExtractorService | None = None,
+        dedup_service: TaskDedupService | None = None,
     ) -> None:
         self._repo = repo or TaskRepository()
         self._status_repo = status_repo or TaskStatusChangeRepository()
         self._favorite_repo = favorite_repo or TaskFavoriteRepository()
         self._direction_repo = direction_repo or DirectionRepository()
         self._extractor = extractor or ExtractorService()
+        self._dedup = dedup_service or TaskDedupService(task_repo=self._repo)
 
     # ------- helpers -------
 
@@ -148,6 +151,53 @@ class TaskService:
             reason="initial",
         )
         return task
+
+    async def create_or_find_duplicate(
+        self,
+        session: AsyncSession,
+        *,
+        user_id: int,
+        text: str,
+        chat_id: int | None = None,
+        source_message_id: int | None = None,
+        source_kind: TaskSource = TaskSource.TEXT,
+        title: str | None = None,
+        deadline: datetime | None = None,
+        direction_id: int | None = None,
+        now: datetime | None = None,
+        force: bool = False,
+    ) -> tuple[TaskModel, bool]:
+        """Создать задачу, но если найдена похожая активная — вернуть её.
+
+        Возвращает (task, is_duplicate). При force=True дедуп пропускается.
+
+        ## Трассируемость
+        Feature: F010
+        Scenarios: SC025, SC026, SC027
+        """
+        cleaned = (text or "").strip()
+        if not cleaned:
+            raise ValidationError("Текст задачи не может быть пустым")
+        if not force:
+            provisional_title = (title or self._build_title(cleaned))[:200]
+            existing = await self._dedup.find_duplicate(
+                session, user_id=user_id, title=provisional_title, now=now
+            )
+            if existing is not None:
+                return existing, True
+        task = await self.create_from_text(
+            session,
+            user_id=user_id,
+            text=cleaned,
+            chat_id=chat_id,
+            source_message_id=source_message_id,
+            source_kind=source_kind,
+            title=title,
+            deadline=deadline,
+            direction_id=direction_id,
+            now=now,
+        )
+        return task, False
 
     # ------- read -------
 

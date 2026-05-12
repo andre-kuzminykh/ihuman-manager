@@ -1,7 +1,7 @@
 """
 ## Трассируемость
-Feature: F007
-Scenarios: SC018, SC019
+Feature: F007, F011
+Scenarios: SC018, SC019, SC028
 """
 
 from __future__ import annotations
@@ -27,3 +27,13 @@ async def get_digest(
     session: AsyncSession = Depends(db_connect.get_session),
 ) -> DigestResponseSchema:
     return await _service.build(session, user_id=user_id, day=day)
+
+
+@router.get("/{user_id}/evening", response_model=DigestResponseSchema)
+async def get_evening_digest(
+    user_id: int,
+    day: datetime | None = None,
+    session: AsyncSession = Depends(db_connect.get_session),
+) -> DigestResponseSchema:
+    """Вечерний дайджест (F011)."""
+    return await _service.build_evening(session, user_id=user_id, day=day)

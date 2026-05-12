@@ -13,6 +13,7 @@ from service.extractor.extractor_service import ExtractorService
 from service.voice.voice_service import VoiceService
 from service.scheduler.scheduler_service import SchedulerService
 from service.digest.digest_service import DigestService
+from service.dedup.task_dedup_service import TaskDedupService
 
 __all__ = [
     "MSK",
@@ -28,4 +29,5 @@ __all__ = [
     "VoiceService",
     "SchedulerService",
     "DigestService",
+    "TaskDedupService",
 ]

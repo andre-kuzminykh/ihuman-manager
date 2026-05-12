@@ -13,6 +13,7 @@ from aiogram.enums import ChatType
 from aiogram.fsm.context import FSMContext
 from aiogram.types import Message
 
+from node.task.answer.duplicate_found_answer import DuplicateFoundAnswer
 from node.task.answer.task_created_answer import TaskCreatedAnswer
 from node.voice.answer.voice_failed_answer import VoiceFailedAnswer
 from node.voice.code.voice_code import VoiceCode
@@ -24,6 +25,7 @@ router = Router(name="voice.F002")
 _ANSWER_REGISTRY = {
     "task_created": TaskCreatedAnswer(),
     "voice_failed": VoiceFailedAnswer(),
+    "duplicate_found": DuplicateFoundAnswer(),
 }
 
 

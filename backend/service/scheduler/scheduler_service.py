@@ -84,11 +84,17 @@ class SchedulerService:
             day_start = start_of_msk_day(n)
             digest_payload = await self._collect_morning_digests(session, day_start)
 
+        evening_payload: list[dict[str, Any]] = []
+        if n.hour == 18 and 30 <= n.minute < 40:
+            day_start = start_of_msk_day(n)
+            evening_payload = await self._collect_evening_digests(session, day_start)
+
         return {
             "now": n.isoformat(),
             "promoted_task_ids": [t.id for t in promoted],
             "deadline_notifications": deadline_payload,
             "morning_digests": digest_payload,
+            "evening_digests": evening_payload,
         }
 
     async def _collect_morning_digests(
@@ -115,6 +121,37 @@ class SchedulerService:
                 user_id=owner_id,
                 task_id=None,
                 kind=NotificationKind.MORNING_DIGEST.value,
+            )
+            payload.append({"user_id": owner_id, "digest": digest.model_dump(mode="json")})
+        return payload
+
+    async def _collect_evening_digests(
+        self, session: AsyncSession, day_start: datetime
+    ) -> list[dict[str, Any]]:
+        subs = await session.execute(select(ChatSubscriptionModel))
+        owner_ids = {row.owner_user_id for row in subs.scalars().all()}
+        owner_ids.update(await self._extract_owner_ids_from_tasks(session))
+
+        payload: list[dict[str, Any]] = []
+        for owner_id in owner_ids:
+            already = await self._notification_repo.exists_for_user_on_date(
+                session,
+                user_id=owner_id,
+                kind=NotificationKind.EVENING_DIGEST.value,
+                date_value=day_start,
+            )
+            if already:
+                continue
+            digest = await self._digest_service.build_evening(
+                session, user_id=owner_id, day=day_start
+            )
+            if digest.is_empty:
+                continue  # BR034 — без активности не шлём
+            await self._notification_repo.add(
+                session,
+                user_id=owner_id,
+                task_id=None,
+                kind=NotificationKind.EVENING_DIGEST.value,
             )
             payload.append({"user_id": owner_id, "digest": digest.model_dump(mode="json")})
         return payload

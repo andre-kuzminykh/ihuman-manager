@@ -713,6 +713,290 @@
           "examples": []
         }
       ]
+    },
+    {
+      "feature_id": "F010",
+      "general_info": {
+        "name": "Дедуп задач",
+        "overview": "При создании задачи (текст, голос, апрув pending) ищем активные похожие задачи того же пользователя за последние 7 дней. Сходство — fuzzy match по нормализованному заголовку (token_set_ratio ≥ 85) и совпадение topic-prefix (первое слово/глагол). Из чата дубль игнорируется; в DM показывается карточка существующей задачи + кнопка 'Всё равно создать'."
+      },
+      "goal_and_context": {
+        "business_goal": "Один и тот же диалог не должен порождать две задачи.",
+        "user_problem": "Без дедупа список засоряется повторами."
+      },
+      "actors_and_roles": {
+        "primary_user": "Владелец задач",
+        "secondary_user": null,
+        "system_service": "TaskDedupService"
+      },
+      "business_rules": [
+        {"rule_id": "BR027", "description": "Окно сравнения — 7 дней назад от сейчас."},
+        {"rule_id": "BR028", "description": "Сравниваются только задачи в активных статусах: backlog, todo, in_progress, paused, blocked."},
+        {"rule_id": "BR029", "description": "Порог сходства — 85 (rapidfuzz.fuzz.token_set_ratio после нормализации: lower, удаление пунктуации, схлопывание whitespace)."},
+        {"rule_id": "BR030", "description": "Topic-prefix: первое нормализованное слово (>=3 символа) должно совпадать у обеих задач — это отсекает ложноположительные срабатывания на общих фразах."},
+        {"rule_id": "BR031", "description": "Параметр force=true в API позволяет обойти дедуп (для кнопки 'Всё равно создать')."}
+      ],
+      "acceptance_criteria": [
+        {
+          "scenario_id": "SC025",
+          "user_story": "Как пользователь, отправивший дважды одно и то же, я хочу получить только одну задачу.",
+          "bdd": {
+            "given": "Есть задача 'Подготовить квартальный отчёт' (status=todo) у U1",
+            "and_preconditions": [],
+            "when": "U1 отправляет '/new подготовить квартальный отчёт сегодня'",
+            "then": "Новая задача не создаётся; вернётся существующая",
+            "and_postconditions": ["В ответе бэкенда — duplicate_of_task_id=ID существующей"]
+          }
+        },
+        {
+          "scenario_id": "SC026",
+          "user_story": "Как пользователь, я хочу обойти дедуп через 'Всё равно создать'.",
+          "bdd": {
+            "given": "Сработал дедуп",
+            "and_preconditions": [],
+            "when": "Повтор запроса с force=true",
+            "then": "Создаётся новая задача без сравнения",
+            "and_postconditions": []
+          }
+        },
+        {
+          "scenario_id": "SC027",
+          "user_story": "Topic-prefix отсекает ложные срабатывания.",
+          "bdd": {
+            "given": "Есть задача 'купить молоко'",
+            "and_preconditions": [],
+            "when": "Запрос '/new сделать презу'",
+            "then": "Сходство не учитывается, создаётся новая задача (разные первые слова)",
+            "and_postconditions": []
+          }
+        }
+      ],
+      "non_functional_requirements": [
+        {"nfr_id": "NFR006", "type": "performance", "description": "Дедуп-сравнение для одного create ≤ 50ms при ≤ 200 активных задачах."}
+      ],
+      "test_cases": [
+        {
+          "test_id": "T025",
+          "scenario_id": "SC025",
+          "setup": "Задача 'Подготовить квартальный отчёт' уже есть",
+          "action": "TaskService.create_from_text('подготовить квартальный отчёт сегодня')",
+          "assertion": "Возвращается старая задача, новая не создана",
+          "examples": []
+        },
+        {
+          "test_id": "T026",
+          "scenario_id": "SC026",
+          "setup": "Сработал дедуп",
+          "action": "create_from_text(..., force=True)",
+          "assertion": "Создана новая задача",
+          "examples": []
+        },
+        {
+          "test_id": "T027",
+          "scenario_id": "SC027",
+          "setup": "Задача 'купить молоко'",
+          "action": "create_from_text('сделать презу')",
+          "assertion": "Создана новая задача — topic-prefix не совпадает",
+          "examples": []
+        }
+      ]
+    },
+    {
+      "feature_id": "F011",
+      "general_info": {
+        "name": "Вечерний дайджест 18:30 МСК",
+        "overview": "Каждый день в 18:30 МСК бот шлёт владельцу подведение итогов дня: что завершено, что в работе, что не сделано (просрочки). Содержит кнопку 'Перенести просрочки на завтра'."
+      },
+      "goal_and_context": {
+        "business_goal": "Закрытие дня — рефлексия и быстрое планирование на завтра.",
+        "user_problem": "Без подведения итогов задачи переползают между днями молча."
+      },
+      "actors_and_roles": {
+        "primary_user": "Владелец задач",
+        "secondary_user": null,
+        "system_service": "SchedulerService + DigestService"
+      },
+      "business_rules": [
+        {"rule_id": "BR032", "description": "Время вечернего дайджеста — 18:30 МСК (Europe/Moscow), один раз в сутки."},
+        {"rule_id": "BR033", "description": "Содержит группы: ✅ Завершено сегодня, 🔵 В работе, ⏱ Просрочено."},
+        {"rule_id": "BR034", "description": "Если за день не было активности — дайджест не отправляется."}
+      ],
+      "acceptance_criteria": [
+        {
+          "scenario_id": "SC028",
+          "user_story": "Как пользователь, я хочу получать вечерний отчёт.",
+          "bdd": {
+            "given": "Сейчас 18:30 МСК, у U1 1 done за сегодня, 1 in_progress, 1 overdue",
+            "and_preconditions": [],
+            "when": "Срабатывает scheduler tick",
+            "then": "U1 получает DM с 3 группами",
+            "and_postconditions": ["NotificationLog имеет запись evening_digest"]
+          }
+        }
+      ],
+      "non_functional_requirements": [],
+      "test_cases": [
+        {
+          "test_id": "T028",
+          "scenario_id": "SC028",
+          "setup": "Создать задачи разных статусов",
+          "action": "DigestService.build_evening",
+          "assertion": "Возвращает 3 группы и total > 0",
+          "examples": []
+        }
+      ]
+    },
+    {
+      "feature_id": "F012",
+      "general_info": {
+        "name": "Быстрые команды /today /overdue /active",
+        "overview": "Команды-фильтры списка задач: /today — задачи с дедлайном или плановой датой сегодня; /overdue — задачи с дедлайном в прошлом и статусом не done/cancelled; /active — задачи в статусах todo, in_progress, blocked."
+      },
+      "goal_and_context": {
+        "business_goal": "Меньше тапов до нужной выборки.",
+        "user_problem": "Через /tasks приходится прокручивать."
+      },
+      "actors_and_roles": {
+        "primary_user": "Владелец задач",
+        "secondary_user": null,
+        "system_service": "TaskService.list_for_user (используется существующий API)"
+      },
+      "business_rules": [
+        {"rule_id": "BR035", "description": "/today: deadline между сегодня 00:00 и 23:59 МСК ИЛИ planned_start_at в этот же интервал."},
+        {"rule_id": "BR036", "description": "/overdue: deadline < сейчас И status ∉ {done, cancelled}."},
+        {"rule_id": "BR037", "description": "/active: status ∈ {todo, in_progress, blocked}."}
+      ],
+      "acceptance_criteria": [
+        {
+          "scenario_id": "SC029",
+          "user_story": "Как пользователь, я хочу /today видеть только сегодняшние задачи.",
+          "bdd": {
+            "given": "У U1 3 задачи: вчера, сегодня, завтра",
+            "and_preconditions": [],
+            "when": "U1 шлёт /today",
+            "then": "В ответе только 1 задача (сегодня)",
+            "and_postconditions": []
+          }
+        },
+        {
+          "scenario_id": "SC030",
+          "user_story": "/overdue показывает только просроченные неактивные.",
+          "bdd": {
+            "given": "Есть просроченная done и просроченная todo",
+            "and_preconditions": [],
+            "when": "/overdue",
+            "then": "Возвращается только todo",
+            "and_postconditions": []
+          }
+        }
+      ],
+      "non_functional_requirements": [],
+      "test_cases": [
+        {
+          "test_id": "T029",
+          "scenario_id": "SC029",
+          "setup": "3 задачи разных дат",
+          "action": "GET /tasks?deadline_after=today_start&deadline_before=today_end",
+          "assertion": "Возвращается одна",
+          "examples": []
+        },
+        {
+          "test_id": "T030",
+          "scenario_id": "SC030",
+          "setup": "Просроченные задачи",
+          "action": "GET /tasks?deadline_before=now&status=todo&status=in_progress&status=blocked",
+          "assertion": "Возвращается только активная просрочка",
+          "examples": []
+        }
+      ]
+    },
+    {
+      "feature_id": "F013",
+      "general_info": {
+        "name": "Статус blocked",
+        "overview": "Добавление статуса blocked (заблокировано внешним фактором) — параллель к paused. Включается в active-выборки. Граф переходов расширен."
+      },
+      "goal_and_context": {
+        "business_goal": "Отличить 'я приостановил сам' (paused) от 'жду чего-то снаружи' (blocked).",
+        "user_problem": "Без отдельного статуса теряется причина простоя."
+      },
+      "actors_and_roles": {
+        "primary_user": "Владелец задач",
+        "secondary_user": null,
+        "system_service": "TaskService.transition_status"
+      },
+      "business_rules": [
+        {"rule_id": "BR038", "description": "Переходы: backlog/todo/in_progress → blocked; blocked → in_progress|done|cancelled|todo."}
+      ],
+      "acceptance_criteria": [
+        {
+          "scenario_id": "SC031",
+          "user_story": "Как пользователь, я хочу нажать 'Заблокировано' на карточке.",
+          "bdd": {
+            "given": "Задача in_progress",
+            "and_preconditions": [],
+            "when": "PATCH .../status {to: blocked}",
+            "then": "status=blocked, аудит-запись создана",
+            "and_postconditions": []
+          }
+        }
+      ],
+      "non_functional_requirements": [],
+      "test_cases": [
+        {
+          "test_id": "T031",
+          "scenario_id": "SC031",
+          "setup": "Задача in_progress",
+          "action": "PATCH .../status {to:blocked}",
+          "assertion": "status=blocked",
+          "examples": []
+        }
+      ]
+    },
+    {
+      "feature_id": "F014",
+      "general_info": {
+        "name": "Ручная команда /task",
+        "overview": "Команда /task <title> [| <ISO deadline>] [| <direction>] позволяет создать задачу одной строкой с явными полями (минуя LLM-парсинг). Альтернатива /new для скриптов и опытных пользователей."
+      },
+      "goal_and_context": {
+        "business_goal": "Скриптовый ввод без ожидания LLM.",
+        "user_problem": "/new всегда зовёт LLM-парсер."
+      },
+      "actors_and_roles": {
+        "primary_user": "Владелец задач",
+        "secondary_user": null,
+        "system_service": "TaskService.create_from_text (с явным title/deadline)"
+      },
+      "business_rules": [
+        {"rule_id": "BR039", "description": "Разделитель полей — символ |."},
+        {"rule_id": "BR040", "description": "deadline — ISO 8601 или относительный 'tomorrow 18:00'; если не передан — сегодня 18:00 МСК."},
+        {"rule_id": "BR041", "description": "Direction — имя существующего направления; если не найдено — направление не присваивается, в ответе предупреждение."}
+      ],
+      "acceptance_criteria": [
+        {
+          "scenario_id": "SC032",
+          "user_story": "Как пользователь, я хочу '/task Купить молоко | 2026-05-13T18:00 | Личное'.",
+          "bdd": {
+            "given": "У U1 есть направление 'Личное'",
+            "and_preconditions": [],
+            "when": "U1 шлёт /task ...",
+            "then": "Создаётся задача с title='Купить молоко', deadline=2026-05-13T18:00, direction='Личное'",
+            "and_postconditions": []
+          }
+        }
+      ],
+      "non_functional_requirements": [],
+      "test_cases": [
+        {
+          "test_id": "T032",
+          "scenario_id": "SC032",
+          "setup": "Direction 'Личное' существует",
+          "action": "TasksAPI.create(title='Купить молоко', deadline=..., direction_id=...)",
+          "assertion": "Создана как задумано",
+          "examples": []
+        }
+      ]
     }
   ]
 }

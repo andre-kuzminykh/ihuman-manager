@@ -6,12 +6,16 @@ from __future__ import annotations
 
 START = (
     "Привет! Я iHuman Manager — помогу вести задачи.\n\n"
-    "• /new <текст> — создать задачу\n"
+    "• /new <текст> — создать задачу (LLM-парсинг)\n"
+    "• /task <title> | <deadline> | <direction> — ручной ввод одной строкой\n"
     "• голосовое — задача из голоса\n"
     "• /tasks — список задач\n"
+    "• /today — задачи на сегодня\n"
+    "• /overdue — просрочки\n"
+    "• /active — todo + in_progress + blocked\n"
     "• /favorites — избранные\n"
     "• /directions — направления\n"
-    "• /digest — задачи на сегодня\n"
+    "• /digest — дайджест на сегодня\n"
     "• /setup_chat (в чате) — слушать чат и извлекать задачи"
 )
 
@@ -24,7 +28,11 @@ TASK_UPDATED = "✏️ Задача обновлена"
 PENDING_CARD_TITLE = "📋 На согласование"
 DEADLINE_NOTICE_TITLE = "⏰ Дедлайн"
 MORNING_DIGEST_TITLE = "☀️ Доброе утро! План на сегодня"
+EVENING_DIGEST_TITLE = "🌙 Итоги дня"
 NO_TASKS_TODAY = "На сегодня задач нет, добавьте /new"
+NO_OVERDUE = "Просрочек нет."
+NO_ACTIVE = "Активных задач нет."
+DUPLICATE_FOUND = "Похожая активная задача уже есть"
 DRAFT_ASK_EDIT = "Что меняем?"
 INVALID_TRANSITION = "Этот переход недоступен"
 STATUS_LABEL = {
@@ -32,6 +40,7 @@ STATUS_LABEL = {
     "todo": "🟡 Todo",
     "in_progress": "🔵 В работе",
     "paused": "⏸ Пауза",
+    "blocked": "🛑 Заблокировано",
     "done": "✅ Готово",
     "cancelled": "🚫 Отменено",
 }

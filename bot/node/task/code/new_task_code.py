@@ -27,9 +27,15 @@ class NewTaskCode:
                 user_id=trigger_data["user_id"],
                 text=text,
                 source_kind=trigger_data.get("source_kind", "text"),
+                force=bool(trigger_data.get("force", False)),
             )
         except APIError as exc:
             if exc.status_code == 422:
                 return {"answer_name": "task_empty_error", "data": {"message": exc.message}}
             return {"answer_name": "task_empty_error", "data": {"message": exc.message}}
+        if task.get("is_duplicate"):
+            return {
+                "answer_name": "duplicate_found",
+                "data": {"task": task, "raw_text": text},
+            }
         return {"answer_name": "task_created", "data": {"task": task}}

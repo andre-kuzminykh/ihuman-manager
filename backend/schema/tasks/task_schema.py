@@ -25,6 +25,7 @@ class TaskCreateSchema(BaseModel):
     title: str | None = None
     deadline: datetime | None = None
     direction_id: int | None = None
+    force: bool = False  # пропустить дедуп (F010 BR031)
 
     @field_validator("text")
     @classmethod
@@ -68,6 +69,7 @@ class TaskResponseSchema(BaseModel):
     planned_end_at: datetime | None
     direction_id: int | None
     is_favorite: bool = False
+    is_duplicate: bool = False  # F010 — задача уже существовала
     paused_at: datetime | None
     completed_at: datetime | None
     cancelled_at: datetime | None

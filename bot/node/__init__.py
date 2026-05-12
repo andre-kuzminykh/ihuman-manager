@@ -9,6 +9,7 @@ from node.task.answer.task_empty_error_answer import TaskEmptyErrorAnswer
 from node.task.answer.task_list_answer import TaskListAnswer
 from node.task.answer.task_card_answer import TaskCardAnswer
 from node.task.answer.invalid_transition_answer import InvalidTransitionAnswer
+from node.task.answer.duplicate_found_answer import DuplicateFoundAnswer
 from node.voice.trigger.voice_trigger import VoiceTrigger
 from node.voice.code.voice_code import VoiceCode
 from node.voice.answer.voice_failed_answer import VoiceFailedAnswer
@@ -30,6 +31,7 @@ __all__ = [
     "TaskListAnswer",
     "TaskCardAnswer",
     "InvalidTransitionAnswer",
+    "DuplicateFoundAnswer",
     "VoiceTrigger",
     "VoiceCode",
     "VoiceFailedAnswer",

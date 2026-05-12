@@ -23,6 +23,7 @@ router = Router(name="task.F003.status")
 _STATUS_MAP = {
     "start": "in_progress",
     "pause": "paused",
+    "block": "blocked",
     "done": "done",
     "cancel": "cancelled",
 }
