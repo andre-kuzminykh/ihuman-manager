@@ -22,7 +22,7 @@ async def test_bot_mention_auto_approves(client, classify_as_task):
             "chat_id": -1003,
             "message_id": 10,
             "sender_username": "alex",
-            "text": "@hmnd_taskbot Подготовить презентацию до пятницы",
+            "text": "@ihuman_manager_bot Подготовить презентацию до пятницы",
             "sent_at": datetime.now(timezone.utc).isoformat(),
             "is_bot_mentioned": True,
         },

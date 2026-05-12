@@ -20,8 +20,8 @@ def _msg(text: str) -> MagicMock:
 
 
 def test_detects_bot_mention(monkeypatch):
-    monkeypatch.setattr(config, "BOT_USERNAME", "hmnd_taskbot")
-    assert _is_bot_mentioned(_msg("@hmnd_taskbot подготовь презу"))
+    monkeypatch.setattr(config, "BOT_USERNAME", "ihuman_manager_bot")
+    assert _is_bot_mentioned(_msg("@ihuman_manager_bot подготовь презу"))
     assert _is_bot_mentioned(_msg("эй, @HMND_TASKBOT, давай"))
     assert not _is_bot_mentioned(_msg("@other_bot ага"))
     assert not _is_bot_mentioned(_msg("обычное сообщение"))

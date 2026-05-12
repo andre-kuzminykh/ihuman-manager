@@ -46,7 +46,7 @@ services:
     container_name: ihuman_bot
     environment:
       BOT_TOKEN: ${BOT_TOKEN}
-      BOT_USERNAME: ${BOT_USERNAME:-hmnd_taskbot}
+      BOT_USERNAME: ${BOT_USERNAME:-ihuman_manager_bot}
       BOT_OWNER_USERNAME: ${BOT_OWNER_USERNAME:-}
       BACKEND_URL: http://backend:8000
       BACKEND_API_PREFIX: ${BACKEND_API_PREFIX:-/api/v1}

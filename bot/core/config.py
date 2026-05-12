@@ -13,7 +13,7 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
     BOT_TOKEN: str = ""
-    BOT_USERNAME: str = "hmnd_taskbot"
+    BOT_USERNAME: str = "ihuman_manager_bot"
     BOT_OWNER_USERNAME: str = ""
 
     BACKEND_URL: str = "http://localhost:8000"
