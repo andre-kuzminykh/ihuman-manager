@@ -1,5 +1,3 @@
-version: "3.9"
-
 services:
   postgres:
     image: postgres:16-alpine
@@ -8,8 +6,11 @@ services:
       POSTGRES_USER: ${DB_USER:-postgres}
       POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
       POSTGRES_DB: ${DB_NAME:-ihuman_manager}
-    ports:
-      - "${DB_PORT:-5432}:5432"
+    # Порт наружу не публикуем — backend ходит через docker-сеть.
+    # Если нужен доступ с хоста: docker exec -it ihuman_postgres psql -U postgres
+    # либо раскомментируй блок ниже (рекомендуется bind 127.0.0.1, чтобы не светить наружу):
+    # ports:
+    #   - "127.0.0.1:${DB_HOST_PORT:-5433}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
