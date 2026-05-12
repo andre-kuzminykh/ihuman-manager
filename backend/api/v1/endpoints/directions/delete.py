@@ -5,7 +5,7 @@ Feature: F009
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from core import db_connect
@@ -16,9 +16,10 @@ router = APIRouter()
 _service = DirectionService()
 
 
-@router.delete("/{direction_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/{direction_id}")
 async def delete_direction(
     direction_id: int,
     session: AsyncSession = Depends(db_connect.get_session),
-) -> None:
+) -> dict:
     await _service.delete(session, direction_id)
+    return {"deleted": True, "direction_id": direction_id}

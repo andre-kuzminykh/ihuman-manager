@@ -39,9 +39,10 @@ async def subscribe_chat(
     return ChatSubscriptionResponseSchema.model_validate(sub)
 
 
-@router.delete("/subscribe/{chat_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/subscribe/{chat_id}")
 async def unsubscribe_chat(
     chat_id: int,
     session: AsyncSession = Depends(db_connect.get_session),
-) -> None:
+) -> dict:
     await _service.unsubscribe(session, chat_id)
+    return {"unsubscribed": True, "chat_id": chat_id}
