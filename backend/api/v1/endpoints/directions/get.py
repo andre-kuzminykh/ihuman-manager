@@ -17,7 +17,7 @@ router = APIRouter()
 _service = DirectionService()
 
 
-@router.get("", response_model=list[DirectionResponseSchema])
+@router.get("/", response_model=list[DirectionResponseSchema])
 async def list_directions(
     user_id: int,
     session: AsyncSession = Depends(db_connect.get_session),

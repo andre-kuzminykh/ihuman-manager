@@ -16,7 +16,7 @@ router = APIRouter()
 _service = ExtractorService()
 
 
-@router.post("", response_model=ExtractResponseSchema)
+@router.post("/", response_model=ExtractResponseSchema)
 async def extract(data: ExtractRequestSchema) -> ExtractResponseSchema:
     classification = await _service.classify_message(
         data.text,

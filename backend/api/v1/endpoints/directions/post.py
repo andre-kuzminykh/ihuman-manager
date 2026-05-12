@@ -21,7 +21,7 @@ router = APIRouter()
 _service = DirectionService()
 
 
-@router.post("", response_model=DirectionResponseSchema, status_code=status.HTTP_201_CREATED)
+@router.post("/", response_model=DirectionResponseSchema, status_code=status.HTTP_201_CREATED)
 async def create_direction(
     data: DirectionCreateSchema,
     session: AsyncSession = Depends(db_connect.get_session),

@@ -18,7 +18,7 @@ router = APIRouter()
 _service = TaskService()
 
 
-@router.post("", response_model=TaskResponseSchema)
+@router.post("/", response_model=TaskResponseSchema)
 async def create_task(
     data: TaskCreateSchema,
     response: Response,

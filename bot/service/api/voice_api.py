@@ -18,7 +18,9 @@ class VoiceAPI:
         self._base_url = (base_url or config.backend_base).rstrip("/")
 
     async def transcribe(self, *, audio_bytes: bytes, file_name: str = "voice.ogg") -> str:
-        async with httpx.AsyncClient(base_url=self._base_url, timeout=60.0) as client:
+        async with httpx.AsyncClient(
+            base_url=self._base_url, timeout=60.0, follow_redirects=True
+        ) as client:
             resp = await client.post(
                 "/voice/transcribe",
                 files={"file": (file_name, audio_bytes, "audio/ogg")},

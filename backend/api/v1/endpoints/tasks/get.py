@@ -22,7 +22,7 @@ router = APIRouter()
 _service = TaskService()
 
 
-@router.get("", response_model=list[TaskListItemSchema])
+@router.get("/", response_model=list[TaskListItemSchema])
 async def list_tasks(
     user_id: int,
     status: Annotated[list[TaskStatus] | None, Query()] = None,

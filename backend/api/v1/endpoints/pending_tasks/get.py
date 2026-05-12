@@ -17,7 +17,7 @@ router = APIRouter()
 _service = PendingTaskService()
 
 
-@router.get("", response_model=list[PendingTaskResponseSchema])
+@router.get("/", response_model=list[PendingTaskResponseSchema])
 async def list_pending(
     owner_user_id: int,
     only_unapproved: bool = True,

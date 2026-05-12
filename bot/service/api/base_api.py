@@ -27,7 +27,10 @@ class BaseAPI:
         self._base_url = (base_url or config.backend_base).rstrip("/")
 
     def _client(self) -> httpx.AsyncClient:
-        return httpx.AsyncClient(base_url=self._base_url, timeout=30.0)
+        # follow_redirects=True — FastAPI 0.115 редиректит /tasks → /tasks/
+        return httpx.AsyncClient(
+            base_url=self._base_url, timeout=30.0, follow_redirects=True
+        )
 
     async def _request(
         self, method: str, path: str, **kwargs: Any
