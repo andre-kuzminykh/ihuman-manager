@@ -53,3 +53,10 @@ class PendingTasksAPI(BaseAPI):
 
     async def reject(self, pending_id: int) -> dict:
         return await self._request("POST", f"/pending-tasks/{pending_id}/reject")
+
+    async def llm_edit(self, pending_id: int, instruction: str) -> dict:
+        return await self._request(
+            "POST",
+            f"/pending-tasks/{pending_id}/llm-edit",
+            json={"instruction": instruction},
+        )

@@ -27,7 +27,7 @@ from sqlalchemy import (
 from sqlalchemy.orm import Mapped, mapped_column
 
 from model.base_model import Base, BaseModel
-from model.enums import TaskSource, TaskStatus
+from model.enums import TaskPriority, TaskSource, TaskStatus
 
 
 class TaskModel(Base, BaseModel):
@@ -39,11 +39,15 @@ class TaskModel(Base, BaseModel):
 
     title: Mapped[str] = mapped_column(String(200), nullable=False)
     text: Mapped[str] = mapped_column(Text, nullable=False)
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
     source_kind: Mapped[str] = mapped_column(
         String(16), nullable=False, default=TaskSource.TEXT.value
     )
     status: Mapped[str] = mapped_column(
         String(16), nullable=False, default=TaskStatus.BACKLOG.value, index=True
+    )
+    priority: Mapped[str] = mapped_column(
+        String(8), nullable=False, default=TaskPriority.MEDIUM.value
     )
 
     deadline: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, index=True)

@@ -288,15 +288,20 @@ class ExtractorService:
             )
             system_prompt = (
                 "Ты — экстрактор задач. Получаешь сообщение пользователя и контекст. "
-                "Извлеки все самостоятельные задачи (от одной до нескольких) и верни "
-                'строгий JSON: {"tasks":[{"title":str,"text":str,"deadline":ISO8601|null,'
+                "Извлеки все самостоятельные задачи и верни строгий JSON: "
+                '{"tasks":[{"title":str,"description":str|null,"text":str,'
+                '"deadline":ISO8601|null,"priority":"low"|"medium"|"high",'
                 '"confidence":float}, ...], "rationale":str}.\n'
                 "Правила:\n"
                 "- Каждая задача — отдельный пункт. Если действий несколько ('A и B'), "
                 "это две задачи.\n"
-                "- Если нет ни одной задачи (пустой треп) — верни tasks: [].\n"
+                "- Если нет ни одной задачи — tasks: [].\n"
                 "- title — короткий повелительный текст до 120 символов.\n"
+                "- description — 1–2 предложения контекста (кто, что, зачем), берётся "
+                "из исходного сообщения и контекста чата. Если контекст пустой — null.\n"
                 "- deadline парси в Europe/Moscow; если не указан — null.\n"
+                "- priority: high если есть слова 'срочно', 'asap', 'важно', "
+                "'критично'; low если 'когда будет время', 'не горит'; иначе medium.\n"
                 "- confidence ∈ [0,1].\n"
                 f"Текущая дата (MSK): {now_iso}."
             )
@@ -341,11 +346,17 @@ class ExtractorService:
                     )
                 except (ValueError, TypeError):
                     deadline_dt = None
+            prio = str(t.get("priority") or "medium").lower()
+            if prio not in {"low", "medium", "high"}:
+                prio = "medium"
+            desc = (t.get("description") or "").strip() or None
             result.append(
                 {
                     "title": title[:120],
+                    "description": desc[:2000] if desc else None,
                     "text": txt[:5000],
                     "deadline": deadline_dt,
+                    "priority": prio,
                     "confidence": float(t.get("confidence") or 0.0),
                 }
             )
@@ -381,3 +392,87 @@ class ExtractorService:
             }
             for p in parts[: self.MAX_MULTI_TASKS]
         ]
+
+    # ---------- natural-language edit ----------
+
+    EDITABLE_FIELDS = ("title", "description", "deadline", "priority")
+
+    async def apply_edit(
+        self,
+        current: dict,
+        instruction: str,
+    ) -> dict:
+        """Применить инструкцию к черновику задачи через LLM.
+
+        ## Трассируемость
+        Feature: F017 (LLM-edit, естественный язык)
+
+        current — текущие поля: {title, description, deadline (iso|None), priority}.
+        instruction — текст пользователя ('переименуй на ..., поставь deadline ...').
+        Возвращает обновлённый dict (только изменённые поля + остальные as-is).
+        """
+        if self._client is None:
+            return self._heuristic_apply_edit(current, instruction)
+        try:
+            now_iso = now_msk().isoformat()
+            system = (
+                "Ты — редактор черновика задачи. Получаешь текущие поля и инструкцию "
+                "пользователя на естественном языке. Верни строгий JSON с тем же "
+                "набором ключей (title, description, deadline (ISO8601|null), "
+                "priority (low|medium|high)). Изменяй ТОЛЬКО те поля, что упомянул "
+                "пользователь. Остальные оставь как есть. "
+                f"Текущая дата (MSK): {now_iso}. Дедлайны в Europe/Moscow."
+            )
+            user = (
+                f"Текущие поля JSON:\n{json.dumps(current, ensure_ascii=False)}\n\n"
+                f"Инструкция: {instruction}"
+            )
+            resp = await self._client.chat.completions.create(
+                model=self._model,
+                messages=[{"role": "system", "content": system}, {"role": "user", "content": user}],
+                response_format={"type": "json_object"},
+                temperature=0,
+            )
+            raw = resp.choices[0].message.content or "{}"
+            data = json.loads(raw)
+            return self._normalize_edit_output(current, data)
+        except Exception as exc:  # pragma: no cover
+            log.warning("LLM apply_edit failed: %s — heuristic", exc)
+            return self._heuristic_apply_edit(current, instruction)
+
+    def _normalize_edit_output(self, current: dict, data: dict) -> dict:
+        out = dict(current)
+        if "title" in data and isinstance(data["title"], str) and data["title"].strip():
+            out["title"] = data["title"].strip()[:200]
+        if "description" in data:
+            desc = data["description"]
+            if isinstance(desc, str):
+                out["description"] = desc.strip()[:2000] or None
+            elif desc is None:
+                out["description"] = None
+        if "deadline" in data:
+            dl = data["deadline"]
+            if isinstance(dl, str) and dl:
+                try:
+                    dt = dateparser.isoparse(dl)
+                    dt = MSK.localize(dt) if dt.tzinfo is None else dt.astimezone(MSK)
+                    out["deadline"] = dt.isoformat()
+                except (ValueError, TypeError):
+                    pass
+            elif dl is None:
+                out["deadline"] = None
+        if "priority" in data:
+            prio = str(data["priority"] or "").lower()
+            if prio in {"low", "medium", "high"}:
+                out["priority"] = prio
+        return out
+
+    def _heuristic_apply_edit(self, current: dict, instruction: str) -> dict:
+        """Совсем грубо: ищем 'дедлайн ...', 'приоритет ...' в инструкции."""
+        out = dict(current)
+        low = (instruction or "").lower()
+        if "высок" in low or "срочн" in low or "high" in low:
+            out["priority"] = "high"
+        elif "низк" in low or "не горит" in low or "low" in low:
+            out["priority"] = "low"
+        return out

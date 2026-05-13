@@ -22,6 +22,7 @@ def build_user_router() -> Router:
     from handler.v1.user.voice.F002.voice_widget import router as voice_router
 
     # chat / pending
+    from handler.v1.user.chat.F005.auto_subscribe_widget import router as auto_subscribe_router
     from handler.v1.user.chat.F005.setup_chat_widget import router as setup_chat_router
     from handler.v1.user.chat.F005.chat_message_widget import router as chat_message_router
     from handler.v1.user.chat.F005.pending_action_widget import router as pending_action_router
@@ -37,7 +38,8 @@ def build_user_router() -> Router:
 
     for r in (
         start_router,
-        setup_chat_router,
+        auto_subscribe_router,
+        setup_chat_router,  # оставляем как ручной fallback
         manual_task_router,  # /task раньше /new — Command чёткий, конфликта нет
         shortcut_router,
         new_task_router,

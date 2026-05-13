@@ -26,6 +26,7 @@ _STATUS_MAP = {
     "block": "blocked",
     "done": "done",
     "cancel": "cancelled",
+    "reopen": "todo",  # done/cancelled → todo
 }
 
 _ANSWER_REGISTRY = {

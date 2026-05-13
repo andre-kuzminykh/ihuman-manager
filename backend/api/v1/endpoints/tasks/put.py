@@ -29,12 +29,15 @@ async def update_task(
         task_id,
         title=data.title,
         text=data.text,
+        description=data.description,
         deadline=data.deadline,
         direction_id=data.direction_id,
+        priority=data.priority,
         planned_start_at=data.planned_start_at,
         planned_end_at=data.planned_end_at,
         unset_direction=data.unset_direction,
         unset_planned=data.unset_planned,
+        unset_description=data.unset_description,
     )
     payload = await _service.to_response(session, task)
     return TaskResponseSchema(**payload)

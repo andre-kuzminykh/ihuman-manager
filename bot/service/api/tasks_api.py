@@ -95,6 +95,13 @@ class TasksAPI(BaseAPI):
     async def get(self, task_id: int) -> dict:
         return await self._request("GET", f"/tasks/{task_id}")
 
+    async def llm_edit(self, task_id: int, instruction: str) -> dict:
+        return await self._request(
+            "POST",
+            f"/tasks/{task_id}/llm-edit",
+            json={"instruction": instruction},
+        )
+
     async def update(self, task_id: int, **fields: Any) -> dict:
         clean = {
             k: (v.isoformat() if isinstance(v, datetime) else v)

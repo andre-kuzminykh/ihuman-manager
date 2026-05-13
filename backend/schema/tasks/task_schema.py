@@ -13,7 +13,7 @@ from typing import Optional
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
-from model.enums import TaskSource, TaskStatus
+from model.enums import TaskPriority, TaskSource, TaskStatus
 
 
 class TaskCreateSchema(BaseModel):
@@ -23,8 +23,10 @@ class TaskCreateSchema(BaseModel):
     source_message_id: int | None = None
     source_kind: TaskSource = TaskSource.TEXT
     title: str | None = None
+    description: str | None = None
     deadline: datetime | None = None
     direction_id: int | None = None
+    priority: TaskPriority = TaskPriority.MEDIUM
     force: bool = False  # пропустить дедуп (F010 BR031)
 
     @field_validator("text")
@@ -39,13 +41,16 @@ class TaskCreateSchema(BaseModel):
 class TaskUpdateSchema(BaseModel):
     title: str | None = Field(None, min_length=1, max_length=200)
     text: str | None = Field(None, min_length=1, max_length=5000)
+    description: str | None = None
     deadline: datetime | None = None
     direction_id: int | None = None
+    priority: TaskPriority | None = None
     planned_start_at: datetime | None = None
     planned_end_at: datetime | None = None
     # sentinel "unset" — отличаем "не передавать" от "сбросить в null"
     unset_direction: bool = False
     unset_planned: bool = False
+    unset_description: bool = False
 
 
 class TaskStatusUpdateSchema(BaseModel):
@@ -60,10 +65,13 @@ class TaskResponseSchema(BaseModel):
     id: int
     user_id: int
     chat_id: int | None
+    source_message_id: int | None = None
     title: str
     text: str
+    description: str | None = None
     status: TaskStatus
     source_kind: TaskSource
+    priority: TaskPriority = TaskPriority.MEDIUM
     deadline: datetime
     planned_start_at: datetime | None
     planned_end_at: datetime | None

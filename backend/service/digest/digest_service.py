@@ -65,8 +65,10 @@ class DigestService:
                 merged[t["id"]] = t
 
         items = list(merged.values())
+        # Избранные впереди + затем по plannedstart/deadline.
         items.sort(
             key=lambda t: (
+                0 if t.get("is_favorite") else 1,
                 t.get("planned_start_at") or t.get("deadline"),
                 t["id"],
             )

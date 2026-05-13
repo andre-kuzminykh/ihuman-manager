@@ -20,7 +20,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.config import config
 from core.exceptions import InvalidTransitionError, NotFoundError, ValidationError
-from model.enums import ALLOWED_TRANSITIONS, TaskSource, TaskStatus
+from model.enums import ALLOWED_TRANSITIONS, TaskPriority, TaskSource, TaskStatus
 from model.tasks.task_model import TaskModel
 from repository.tasks.task_favorite_repository import TaskFavoriteRepository
 from repository.tasks.task_repository import TaskRepository
@@ -47,10 +47,13 @@ def _enrich_with_favorites(
         "id": task.id,
         "user_id": task.user_id,
         "chat_id": task.chat_id,
+        "source_message_id": task.source_message_id,
         "title": task.title,
         "text": task.text,
+        "description": task.description,
         "status": task.status,
         "source_kind": task.source_kind,
+        "priority": task.priority,
         "deadline": task.deadline,
         "planned_start_at": task.planned_start_at,
         "planned_end_at": task.planned_end_at,
@@ -110,8 +113,10 @@ class TaskService:
         source_message_id: int | None = None,
         source_kind: TaskSource = TaskSource.TEXT,
         title: str | None = None,
+        description: str | None = None,
         deadline: datetime | None = None,
         direction_id: int | None = None,
+        priority: TaskPriority | str | None = None,
         now: datetime | None = None,
     ) -> TaskModel:
         cleaned = (text or "").strip()
@@ -129,6 +134,9 @@ class TaskService:
 
         final_title = (title or self._build_title(cleaned))[:200]
         status = self._initial_status(deadline, now=now)
+        prio_value = (
+            priority.value if isinstance(priority, TaskPriority) else (priority or TaskPriority.MEDIUM.value)
+        )
 
         task = await self._repo.create(
             session,
@@ -138,7 +146,9 @@ class TaskService:
             source_kind=source_kind.value if isinstance(source_kind, TaskSource) else source_kind,
             title=final_title,
             text=cleaned,
+            description=description,
             status=status.value,
+            priority=prio_value,
             deadline=deadline,
             direction_id=direction_id,
         )
@@ -162,19 +172,13 @@ class TaskService:
         source_message_id: int | None = None,
         source_kind: TaskSource = TaskSource.TEXT,
         title: str | None = None,
+        description: str | None = None,
         deadline: datetime | None = None,
         direction_id: int | None = None,
+        priority: TaskPriority | str | None = None,
         now: datetime | None = None,
         force: bool = False,
     ) -> tuple[TaskModel, bool]:
-        """Создать задачу, но если найдена похожая активная — вернуть её.
-
-        Возвращает (task, is_duplicate). При force=True дедуп пропускается.
-
-        ## Трассируемость
-        Feature: F010
-        Scenarios: SC025, SC026, SC027
-        """
         cleaned = (text or "").strip()
         if not cleaned:
             raise ValidationError("Текст задачи не может быть пустым")
@@ -193,8 +197,10 @@ class TaskService:
             source_message_id=source_message_id,
             source_kind=source_kind,
             title=title,
+            description=description,
             deadline=deadline,
             direction_id=direction_id,
+            priority=priority,
             now=now,
         )
         return task, False
@@ -235,7 +241,9 @@ class TaskService:
                 source_message_id=source_message_id,
                 source_kind=source_kind,
                 title=title or None,
+                description=item.get("description"),
                 deadline=item.get("deadline"),
+                priority=item.get("priority"),
                 now=now,
                 force=force,
             )
@@ -292,12 +300,15 @@ class TaskService:
         *,
         title: str | None = None,
         text: str | None = None,
+        description: str | None = None,
         deadline: datetime | None = None,
         direction_id: int | None = None,
+        priority: TaskPriority | str | None = None,
         planned_start_at: datetime | None = None,
         planned_end_at: datetime | None = None,
         unset_direction: bool = False,
         unset_planned: bool = False,
+        unset_description: bool = False,
     ) -> TaskModel:
         task = await self.get_or_404(session, task_id)
 
@@ -308,6 +319,12 @@ class TaskService:
             if not cleaned:
                 raise ValidationError("Текст задачи не может быть пустым")
             task.text = cleaned
+        if unset_description:
+            task.description = None
+        elif description is not None:
+            task.description = description.strip() or None
+        if priority is not None:
+            task.priority = priority.value if isinstance(priority, TaskPriority) else str(priority)
         if deadline is not None:
             task.deadline = deadline
             if task.status == TaskStatus.DONE.value:

@@ -70,3 +70,16 @@ class NotificationKind(str, enum.Enum):
     DEADLINE = "deadline"
     MORNING_DIGEST = "morning_digest"
     EVENING_DIGEST = "evening_digest"
+
+
+class TaskPriority(str, enum.Enum):
+    LOW = "low"
+    MEDIUM = "medium"
+    HIGH = "high"
+
+
+PRIORITY_EMOJI: dict[str, str] = {
+    "low": "🟢",
+    "medium": "🟡",
+    "high": "🔴",
+}

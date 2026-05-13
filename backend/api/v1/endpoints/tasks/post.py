@@ -32,8 +32,10 @@ async def create_task(
         source_message_id=data.source_message_id,
         source_kind=data.source_kind,
         title=data.title,
+        description=data.description,
         deadline=data.deadline,
         direction_id=data.direction_id,
+        priority=data.priority,
         force=data.force,
     )
     payload = await _service.to_response(session, task)
