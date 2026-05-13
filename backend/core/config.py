@@ -27,7 +27,7 @@ class Settings(BaseSettings):
     # LLM_MODEL остаётся для совместимости (используется в apply_edit и т.п.)
     LLM_MODEL: str = "gpt-4o-mini"
     CLASSIFIER_MODEL: str = "gpt-4o-mini"
-    DECOMPOSER_MODEL: str = "gpt-4o"
+    DECOMPOSER_MODEL: str = "gpt-5.4"
     WHISPER_MODEL: str = "whisper-1"
 
     # Scheduler

@@ -99,15 +99,12 @@ async def on_business_message(message: Message) -> None:
         task = await tasks_api.get(result["task_id"])
         await bot.send_message(
             owner,
-            "📥 Задача из бизнес-чата (автоапрув):\n\n" + render_task_card(task),
+            render_task_card(task),
             reply_markup=build_task_card_kb(task),
             disable_web_page_preview=True,
         )
     elif decision == "auto_approved_multi":
         tasks_api = TasksAPI()
-        await bot.send_message(
-            owner, f"📥 Из бизнес-чата извлечено задач: {len(result.get('task_ids', []))}"
-        )
         for tid in result.get("task_ids", []):
             task = await tasks_api.get(tid)
             await bot.send_message(

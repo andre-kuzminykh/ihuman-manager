@@ -305,6 +305,12 @@ class ExtractorService:
                 "и оно НЕ описывает уже свершившееся прошлое."
             )
             user = f"Контекст:\n{context_text}\n\nСообщение:\n{text}"
+            log.info(
+                "CLASSIFIER input: model=%s text=%r context=%r",
+                self._classifier_model,
+                text[:300],
+                context_text[:600],
+            )
             resp = await self._client.chat.completions.create(
                 model=self._classifier_model,
                 messages=[{"role": "system", "content": system}, {"role": "user", "content": user}],
@@ -312,8 +318,15 @@ class ExtractorService:
                 temperature=0,
             )
             raw = resp.choices[0].message.content or "{}"
+            log.info("CLASSIFIER raw output: %s", raw)
             data = json.loads(raw)
-            return bool(data.get("has_task", False))
+            verdict = bool(data.get("has_task", False))
+            log.info(
+                "CLASSIFIER verdict: has_task=%s reason=%r",
+                verdict,
+                data.get("reason"),
+            )
+            return verdict
         except Exception as exc:  # pragma: no cover
             log.warning("LLM classifier failed: %s — heuristic", exc)
             return self._heuristic_classify(text).get("is_task", False)
@@ -369,6 +382,12 @@ class ExtractorService:
                 f"Текущая дата (MSK): {now_iso}."
             )
             user_prompt = f"Контекст:\n{context_text}\n\nСообщение:\n{text}"
+            log.info(
+                "DECOMPOSER input: model=%s text=%r context=%r",
+                self._decomposer_model,
+                text[:300],
+                context_text[:1200],
+            )
             resp = await self._client.chat.completions.create(
                 model=self._decomposer_model,
                 messages=[
@@ -379,8 +398,15 @@ class ExtractorService:
                 temperature=0,
             )
             raw = resp.choices[0].message.content or "{}"
+            log.info("DECOMPOSER raw output: %s", raw[:2000])
             data = json.loads(raw)
-            return self._normalize_multi_output(data)
+            normalized = self._normalize_multi_output(data)
+            log.info(
+                "DECOMPOSER normalized %d tasks: %s",
+                len(normalized),
+                [{"title": t["title"], "priority": t.get("priority")} for t in normalized],
+            )
+            return normalized
         except Exception as exc:  # pragma: no cover
             log.warning("LLM extract_multiple failed: %s — heuristic fallback", exc)
             return self._heuristic_extract_multiple(text)

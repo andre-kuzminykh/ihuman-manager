@@ -49,8 +49,9 @@ async def on_chat_message(message: Message) -> None:
         bot = get_bot()
         await bot.send_message(
             task["user_id"],
-            "📥 Задача из чата (автоапрув):\n\n" + render_task_card(task),
+            render_task_card(task),
             reply_markup=build_task_card_kb(task),
+            disable_web_page_preview=True,
         )
     elif decision == "tasks_created_multi_dm":
         tasks = result["data"]["tasks"]
@@ -58,11 +59,11 @@ async def on_chat_message(message: Message) -> None:
             return
         bot = get_bot()
         owner_id = tasks[0]["user_id"]
-        await bot.send_message(
-            owner_id, f"📥 Из чата извлечено задач: {len(tasks)}"
-        )
         for t in tasks:
             await bot.send_message(
-                owner_id, render_task_card(t), reply_markup=build_task_card_kb(t)
+                owner_id,
+                render_task_card(t),
+                reply_markup=build_task_card_kb(t),
+                disable_web_page_preview=True,
             )
     # not_subscribed / ignored / duplicate — никаких сообщений в чат не шлём.

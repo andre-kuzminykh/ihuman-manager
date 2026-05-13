@@ -16,11 +16,14 @@ from node.task.answer.task_created_answer import build_task_card_kb, render_task
 class TaskCardAnswer:
     async def run(self, *, event: Message | CallbackQuery, user_lang: str = "ru", data: dict) -> None:
         task = data["task"]
-        text = render_task_card(task, title_prefix=data.get("title_prefix", "🗂 Задача"))
+        # без префикса — только содержимое карточки.
+        text = render_task_card(task)
         kb = build_task_card_kb(task)
         if isinstance(event, CallbackQuery):
             if event.message is not None:
-                await event.message.edit_text(text, reply_markup=kb)
+                await event.message.edit_text(
+                    text, reply_markup=kb, disable_web_page_preview=True
+                )
             await event.answer()
         else:
-            await event.answer(text, reply_markup=kb)
+            await event.answer(text, reply_markup=kb, disable_web_page_preview=True)

@@ -18,11 +18,15 @@ Scenarios: SC012, SC013, SC014 (BR012–BR016)
 
 from __future__ import annotations
 
+import logging
 from datetime import datetime
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.config import config
+
+
+log = logging.getLogger("message_ingest")
 from repository.chats.message_context_repository import MessageContextRepository
 from repository.chats.processed_message_repository import ProcessedMessageRepository
 from schema.chats.message_ingest_schema import (
@@ -56,10 +60,19 @@ class MessageIngestService:
     async def ingest(
         self, session: AsyncSession, payload: MessageIngestSchema
     ) -> MessageIngestResultSchema:
+        log.info(
+            "INGEST start: chat=%s msg=%s sender=%s mentioned=%s text=%r",
+            payload.chat_id,
+            payload.message_id,
+            payload.sender_username,
+            payload.is_bot_mentioned,
+            payload.text[:300],
+        )
         # 1. dedup
         if await self._processed_repo.is_processed(
             session, payload.chat_id, payload.message_id
         ):
+            log.info("INGEST duplicate: chat=%s msg=%s", payload.chat_id, payload.message_id)
             return MessageIngestResultSchema(decision="duplicate")
 
         # 2. subscription
@@ -91,6 +104,11 @@ class MessageIngestService:
             for m in context
             if m.message_id != payload.message_id
         ]
+        log.info(
+            "INGEST context size=%d, last_messages=%s",
+            len(context_payload),
+            [f"{m['sender_username'] or 'user'}: {m['text'][:80]}" for m in context_payload[-5:]],
+        )
 
         # 5. Извлекаем массив задач (всегда). Если 0 — игнор. Если >=1 —
         #    либо авто-апрув (бот тегнут), либо N PendingTask на согласование.

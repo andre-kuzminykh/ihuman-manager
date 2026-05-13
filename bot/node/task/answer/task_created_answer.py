@@ -29,34 +29,35 @@ def _fmt_deadline(value: str | None) -> str:
 
 def build_task_card_kb(task: dict) -> InlineKeyboardMarkup:
     """Раскладка карточки:
-       строка 1: ▶️ Начать (большая) — если задача в backlog/todo/paused/blocked
-       строка 2: ⭐ Избранное (большая) — всегда
-       строка 3: 🚫 Отменить · ⏸ Пауза · ✅ Готово (Пауза только когда in_progress)
-    Для done/cancelled — ↩️ Вернуть в работу (через action='reopen' → status=todo).
+       Row 1 (большая): Начать ↔ Пауза (тогл по статусу). Для done/cancelled — Вернуть.
+       Row 2 (большая): ⭐ В избранное / ⭐ Убрать.
+       Row 3 (две кнопки): 🚫 Отмена · ✅ Готово. Без Пауза в этом ряду.
     """
     rows: list[list[InlineKeyboardButton]] = []
     status = task.get("status")
     tid = task["id"]
 
-    if status in {"done", "cancelled"}:
-        rows.append([
-            InlineKeyboardButton(
-                text="↩️ Вернуть в работу",
-                callback_data=TaskActionCallback(task_id=tid, action="reopen").pack(),
-            )
-        ])
-        return InlineKeyboardMarkup(inline_keyboard=rows)
-
-    # большая «Начать / Продолжить»
-    start_label = "▶️ Продолжить" if status in {"paused", "blocked"} else "▶️ Начать"
+    # Row 1 — большой главный экшен.
+    if status == "in_progress":
+        primary_text, primary_action = "⏸ Пауза", "pause"
+    elif status in {"paused", "blocked"}:
+        primary_text, primary_action = "▶️ Продолжить", "start"
+    elif status in {"done", "cancelled"}:
+        primary_text, primary_action = "↩️ Вернуть в работу", "reopen"
+    else:
+        primary_text, primary_action = "▶️ Начать", "start"
     rows.append([
         InlineKeyboardButton(
-            text=start_label,
-            callback_data=TaskActionCallback(task_id=tid, action="start").pack(),
+            text=primary_text,
+            callback_data=TaskActionCallback(task_id=tid, action=primary_action).pack(),
         )
     ])
 
-    # большая «Избранное»
+    # done/cancelled — больше ничего не показываем.
+    if status in {"done", "cancelled"}:
+        return InlineKeyboardMarkup(inline_keyboard=rows)
+
+    # Row 2 — большая «Избранное».
     fav_text = "⭐ Убрать из избранного" if task.get("is_favorite") else "⭐ В избранное"
     fav_action = "unfavorite" if task.get("is_favorite") else "favorite"
     rows.append([
@@ -66,27 +67,17 @@ def build_task_card_kb(task: dict) -> InlineKeyboardMarkup:
         )
     ])
 
-    # нижний ряд: Отменить → Пауза (только in_progress) → Готово
-    bottom = [
+    # Row 3 — Отмена + Готово (без Пауза).
+    rows.append([
         InlineKeyboardButton(
-            text="🚫 Отменить",
+            text="🚫 Отмена",
             callback_data=TaskActionCallback(task_id=tid, action="cancel").pack(),
-        )
-    ]
-    if status == "in_progress":
-        bottom.append(
-            InlineKeyboardButton(
-                text="⏸ Пауза",
-                callback_data=TaskActionCallback(task_id=tid, action="pause").pack(),
-            )
-        )
-    bottom.append(
+        ),
         InlineKeyboardButton(
             text="✅ Готово",
             callback_data=TaskActionCallback(task_id=tid, action="done").pack(),
-        )
-    )
-    rows.append(bottom)
+        ),
+    ])
     return InlineKeyboardMarkup(inline_keyboard=rows)
 
 
@@ -96,14 +87,17 @@ _PRIORITY_EMOJI = {"low": "🟢", "medium": "🟡", "high": "🔴"}
 def _source_url(task: dict) -> str | None:
     chat_id = task.get("chat_id")
     msg_id = task.get("source_message_id")
-    if not chat_id or not msg_id:
+    if not chat_id:
         return None
-    # Supergroups / channels: chat_id вида -100xxxxxxxxxx → t.me/c/xxxxxxxxxx/<msg>
-    # Обычные private groups (chat_id < 0 без -100) — нет публичной ссылки.
     cid = int(chat_id)
-    if cid < 0 and str(cid).startswith("-100"):
-        public_id = str(cid)[4:]  # отрезаем "-100"
-        return f"https://t.me/c/{public_id}/{msg_id}"
+    # Supergroups / channels — публичная ссылка на конкретное сообщение.
+    if cid < 0 and str(cid).startswith("-100") and msg_id:
+        return f"https://t.me/c/{str(cid)[4:]}/{msg_id}"
+    # Private DM / private group — нет URL на конкретное сообщение.
+    # Фоллбек: t.me/<username> отправителя.
+    sender = task.get("source_sender") or task.get("source_sender_username")
+    if sender:
+        return f"https://t.me/{sender}"
     return None
 
 
@@ -149,8 +143,8 @@ def render_task_card(task: dict, *, title_prefix: str | None = None) -> str:
 class TaskCreatedAnswer:
     async def run(self, *, event: Message, user_lang: str = "ru", data: dict) -> None:
         task = data["task"]
-        prefix = vocab.TASK_CREATED if not data.get("from_pending") else "✅ Задача создана из согласования"
-        text = render_task_card(task, title_prefix=prefix)
+        # Никаких лишних префиксов — сразу карточка задачи.
+        text = render_task_card(task)
         await event.answer(
             text, reply_markup=build_task_card_kb(task), disable_web_page_preview=True
         )
