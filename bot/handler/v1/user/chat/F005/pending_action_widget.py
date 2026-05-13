@@ -75,14 +75,13 @@ async def on_approve(cb: CallbackQuery, callback_data: PendingActionCallback) ->
 @router.callback_query(PendingActionCallback.filter(F.action == "reject"))
 async def on_reject(cb: CallbackQuery, callback_data: PendingActionCallback) -> None:
     code = PendingApproveCode()
-    result = await code.reject(callback_data.pending_id)
-    text = (
-        "🚫 Отклонено"
-        if result["answer_name"] == "pending_rejected"
-        else result["data"].get("message", "Ошибка")
-    )
+    await code.reject(callback_data.pending_id)
+    # Молча убираем карточку — никаких "отклонено" в чат.
     if cb.message is not None:
-        await cb.message.edit_text(text)
+        try:
+            await cb.message.delete()
+        except Exception:
+            pass
     await cb.answer()
 
 
