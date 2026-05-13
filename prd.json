@@ -1084,6 +1084,73 @@
           "examples": []
         }
       ]
+    },
+    {
+      "feature_id": "F018",
+      "general_info": {
+        "name": "Telegram Business — извлечение задач из DM-чатов владельца",
+        "overview": "Пользователь Telegram Premium подключает бота через Settings → Business → Chatbots. Бот получает business_connection_id и слушает все DM-чаты владельца через business_message. Каждое входящее сообщение проходит тот же pipeline ingest → задачи, что и групповой чат. Карточки прилетают владельцу в DM с ботом."
+      },
+      "goal_and_context": {
+        "business_goal": "Снять задачи из переписки с клиентами и партнёрами без копирования.",
+        "user_problem": "Сейчас приходится либо пересылать боту, либо переписывать вручную."
+      },
+      "actors_and_roles": {
+        "primary_user": "Владелец Telegram Business аккаунта",
+        "secondary_user": "Контрагенты, пишущие в DM",
+        "system_service": "Backend BusinessConnectionService + MessageIngestService"
+      },
+      "business_rules": [
+        {"rule_id": "BR047", "description": "При получении business_connection — upsert (business_connection_id, owner_user_id, is_enabled)."},
+        {"rule_id": "BR048", "description": "is_enabled=False → задачи не извлекаются."},
+        {"rule_id": "BR049", "description": "Сообщения, отправленные самим владельцем (from.id == owner), пропускаются."},
+        {"rule_id": "BR050", "description": "Для каждого DM-чата под business-владельцем автоматически создаётся ChatSubscription, чтобы переиспользовать ingest pipeline."}
+      ],
+      "acceptance_criteria": [
+        {
+          "scenario_id": "SC036",
+          "user_story": "Как Premium-владелец, я подключаю бота к моему бизнес-аккаунту.",
+          "bdd": {
+            "given": "У владельца U1 нет business_connection",
+            "and_preconditions": [],
+            "when": "Telegram присылает business_connection {id: BC1, user.id: U1, is_enabled: true}",
+            "then": "В business_connections появляется запись (BC1, U1, is_enabled=true)",
+            "and_postconditions": ["U1 получает DM '✅ Подключён к Telegram Business'"]
+          }
+        },
+        {
+          "scenario_id": "SC037",
+          "user_story": "Как владелец, я хочу что задачи из моих DM с клиентами автоматически прилетали мне.",
+          "bdd": {
+            "given": "BC1 подключён, владелец U1",
+            "and_preconditions": [],
+            "when": "В DM с клиентом приходит сообщение 'надо собрать отчёт к пятнице', Telegram присылает business_message",
+            "then": "Чат авто-подписывается на U1, ingest извлекает задачу, U1 получает карточку",
+            "and_postconditions": []
+          }
+        }
+      ],
+      "non_functional_requirements": [
+        {"nfr_id": "NFR008", "type": "privacy", "description": "Бот читает только сообщения подключённого business-аккаунта; ничего не пишет от его имени без явного запроса."}
+      ],
+      "test_cases": [
+        {
+          "test_id": "T036",
+          "scenario_id": "SC036",
+          "setup": "Пустая таблица business_connections",
+          "action": "POST /api/v1/business/connections",
+          "assertion": "Запись создана и возвращается owner_user_id",
+          "examples": []
+        },
+        {
+          "test_id": "T037",
+          "scenario_id": "SC037",
+          "setup": "BC1 зарегистрирован, мок ExtractorService → is_task=True",
+          "action": "Bot вызывает chats/subscribe + messages/ingest для business_message",
+          "assertion": "decision=pending_created, владелец получит карточку",
+          "examples": []
+        }
+      ]
     }
   ]
 }

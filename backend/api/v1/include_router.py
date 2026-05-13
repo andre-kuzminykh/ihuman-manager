@@ -7,6 +7,7 @@ from __future__ import annotations
 from fastapi import FastAPI
 
 from api.v1.endpoints import (
+    business_router,
     chats_router,
     digest_router,
     directions_router,
@@ -29,3 +30,4 @@ def include_routers(app: FastAPI) -> None:
     app.include_router(voice_router, prefix=prefix)
     app.include_router(digest_router, prefix=prefix)
     app.include_router(scheduler_router, prefix=prefix)
+    app.include_router(business_router, prefix=prefix)

@@ -27,6 +27,14 @@ def build_user_router() -> Router:
     from handler.v1.user.chat.F005.chat_message_widget import router as chat_message_router
     from handler.v1.user.chat.F005.pending_action_widget import router as pending_action_router
 
+    # business (F018)
+    from handler.v1.user.business.F018.business_connection_widget import (
+        router as business_connection_router,
+    )
+    from handler.v1.user.business.F018.business_message_widget import (
+        router as business_message_router,
+    )
+
     # directions
     from handler.v1.user.directions.F009.directions_widget import router as directions_router
 
@@ -39,6 +47,7 @@ def build_user_router() -> Router:
     for r in (
         start_router,
         auto_subscribe_router,
+        business_connection_router,
         setup_chat_router,  # оставляем как ручной fallback
         manual_task_router,  # /task раньше /new — Command чёткий, конфликта нет
         shortcut_router,
@@ -51,6 +60,7 @@ def build_user_router() -> Router:
         directions_router,
         digest_router,
         chat_message_router,  # catch-all для групповых сообщений — в конец
+        business_message_router,  # business messages catch-all
     ):
         root.include_router(r)
     return root

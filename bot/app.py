@@ -46,6 +46,11 @@ async def main() -> None:
         "callback_query",
         "my_chat_member",
         "chat_member",
+        # F018 — Telegram Business
+        "business_connection",
+        "business_message",
+        "edited_business_message",
+        "deleted_business_messages",
     ]
     log.info("Polling allowed_updates=%s", allowed_updates)
 
