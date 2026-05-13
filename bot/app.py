@@ -35,6 +35,29 @@ async def main() -> None:
     include_routers(dp)
 
     bot = get_bot()
+
+    # Явно перечисляем нужные update-типы. resolve_used_update_types() иногда
+    # пропускает channel_post при regex-handler'ах — поэтому фиксируем сами.
+    allowed_updates = [
+        "message",
+        "edited_message",
+        "channel_post",
+        "edited_channel_post",
+        "callback_query",
+        "my_chat_member",
+        "chat_member",
+    ]
+    log.info("Polling allowed_updates=%s", allowed_updates)
+
+    me = await bot.get_me()
+    log.info(
+        "Bot identity: @%s id=%s; can_join_groups=%s can_read_all_group_messages=%s",
+        me.username,
+        me.id,
+        getattr(me, "can_join_groups", None),
+        getattr(me, "can_read_all_group_messages", None),
+    )
+
     scheduler_task: asyncio.Task | None = None
     if config.BOT_SCHEDULER_TICK_SECONDS > 0:
         scheduler_task = asyncio.create_task(
@@ -42,7 +65,7 @@ async def main() -> None:
         )
 
     try:
-        await dp.start_polling(bot, allowed_updates=dp.resolve_used_update_types())
+        await dp.start_polling(bot, allowed_updates=allowed_updates)
     finally:
         if scheduler_task:
             scheduler_task.cancel()
