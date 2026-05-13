@@ -89,6 +89,11 @@ async def on_business_message(message: Message) -> None:
         pending_api = PendingTasksAPI()
         pending = await pending_api.get(result["pending_task_id"])
         await PendingCardAnswer().send(owner_chat_id=owner, pending=pending)
+    elif decision == "pending_created_multi":
+        pending_api = PendingTasksAPI()
+        for pid in result.get("pending_task_ids", []):
+            pending = await pending_api.get(pid)
+            await PendingCardAnswer().send(owner_chat_id=owner, pending=pending)
     elif decision == "auto_approved":
         tasks_api = TasksAPI()
         task = await tasks_api.get(result["task_id"])

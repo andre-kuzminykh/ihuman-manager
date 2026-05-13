@@ -38,6 +38,12 @@ async def on_chat_message(message: Message) -> None:
         await PendingCardAnswer().send(
             owner_chat_id=pending["owner_user_id"], pending=pending
         )
+    elif decision == "pendings_multi_dm":
+        pendings = result["data"]["pendings"]
+        for p in pendings:
+            await PendingCardAnswer().send(
+                owner_chat_id=p["owner_user_id"], pending=p
+            )
     elif decision == "task_created_dm":
         task = result["data"]["task"]
         bot = get_bot()

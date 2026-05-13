@@ -92,17 +92,19 @@ class MessageIngestService:
             if m.message_id != payload.message_id
         ]
 
-        # 5a. multi-task path для тегнутого бота (F015 BR046)
-        if payload.is_bot_mentioned:
-            from model.enums import TaskSource as _TaskSource
+        # 5. Извлекаем массив задач (всегда). Если 0 — игнор. Если >=1 —
+        #    либо авто-апрув (бот тегнут), либо N PendingTask на согласование.
+        from model.enums import TaskSource as _TaskSource
 
-            extracted = await self._extractor.extract_multiple(
-                payload.text, context_messages=context_payload
+        extracted = await self._extractor.extract_multiple(
+            payload.text, context_messages=context_payload
+        )
+        if not extracted:
+            return MessageIngestResultSchema(
+                decision="ignored", detail="not_a_task"
             )
-            if not extracted:
-                return MessageIngestResultSchema(
-                    decision="ignored", detail="not_a_task"
-                )
+
+        if payload.is_bot_mentioned:
             results = await self._task_service.create_many_from_extraction(
                 session,
                 user_id=sub.owner_user_id,
@@ -114,8 +116,7 @@ class MessageIngestService:
             task_ids = [t.id for t, _ in results]
             if len(task_ids) > 1:
                 return MessageIngestResultSchema(
-                    decision="auto_approved_multi",
-                    task_ids=task_ids,
+                    decision="auto_approved_multi", task_ids=task_ids
                 )
             return MessageIngestResultSchema(
                 decision="auto_approved",
@@ -123,40 +124,39 @@ class MessageIngestService:
                 task_ids=task_ids,
             )
 
-        # 5b. одна задача → согласование (как было)
-        classification = await self._extractor.classify_message(
-            payload.text, context_messages=context_payload
-        )
-        if not classification.get("is_task"):
-            return MessageIngestResultSchema(
-                decision="ignored", detail="not_a_task"
+        # Не тегнут → каждая задача = отдельный pending для согласования.
+        pending_ids: list[int] = []
+        for item in extracted:
+            deadline = item.get("deadline")
+            if deadline is None:
+                deadline = today_msk_default_deadline()
+            draft = {
+                "title": item["title"],
+                "description": item.get("description"),
+                "text": item.get("text") or item["title"],
+                "deadline": deadline.isoformat() if isinstance(deadline, datetime) else deadline,
+                "priority": item.get("priority") or "medium",
+                "confidence": item.get("confidence"),
+            }
+            pending = await self._pending_service.create(
+                session,
+                chat_id=payload.chat_id,
+                message_id=payload.message_id,
+                owner_user_id=sub.owner_user_id,
+                source_text=payload.text,
+                source_sender=payload.sender_username,
+                draft=draft,
+                is_auto_approved=False,
             )
+            pending_ids.append(pending.id)
 
-        deadline = classification.get("deadline")
-        if deadline is None:
-            deadline = await self._extractor.parse_deadline(payload.text)
-        if deadline is None:
-            deadline = today_msk_default_deadline()
-
-        draft = {
-            "title": classification.get("title") or self._extractor.build_title(payload.text),
-            "text": payload.text,
-            "deadline": deadline.isoformat() if isinstance(deadline, datetime) else deadline,
-            "confidence": classification.get("confidence"),
-        }
-
-        pending = await self._pending_service.create(
-            session,
-            chat_id=payload.chat_id,
-            message_id=payload.message_id,
-            owner_user_id=sub.owner_user_id,
-            source_text=payload.text,
-            source_sender=payload.sender_username,
-            draft=draft,
-            is_auto_approved=False,
-        )
-
+        if len(pending_ids) > 1:
+            return MessageIngestResultSchema(
+                decision="pending_created_multi",
+                pending_task_ids=pending_ids,
+            )
         return MessageIngestResultSchema(
             decision="pending_created",
-            pending_task_id=pending.id,
+            pending_task_id=pending_ids[0] if pending_ids else None,
+            pending_task_ids=pending_ids,
         )

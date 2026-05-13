@@ -43,8 +43,8 @@ def _source_url(pending: dict) -> str | None:
 
 def render_pending_text(pending: dict) -> str:
     draft = pending.get("draft") or {}
-    title = (draft.get("title") or pending.get("source_text", "")[:80]).strip()
-    desc = draft.get("description") or pending.get("source_text", "")
+    title = (draft.get("title") or "").strip() or "Без названия"
+    desc = (draft.get("description") or "").strip()
     deadline = draft.get("deadline")
     prio = (draft.get("priority") or "medium").lower()
     prio_emoji = _PRIORITY_EMOJI.get(prio, "🟡")
@@ -54,18 +54,11 @@ def render_pending_text(pending: dict) -> str:
     if src_url:
         title_block = f'<a href="{src_url}"><b>{html.escape(title)}</b></a>'
 
-    lines = [
-        f"{vocab.PENDING_CARD_TITLE} #{pending.get('id')}",
-        "",
-        f"{prio_emoji} {title_block}",
-    ]
+    lines = [f"{prio_emoji} {title_block}"]
     if desc:
         lines.append(f"📝 {html.escape(desc)}")
     if deadline:
         lines.append(f"📅 {_fmt(deadline)}")
-
-    sender = pending.get("source_sender") or "—"
-    lines.append(f"<i>Из чата · от {html.escape(str(sender))}</i>")
     return "\n".join(lines)
 
 
@@ -96,6 +89,7 @@ class PendingCardAnswer:
             owner_chat_id,
             render_pending_text(pending),
             reply_markup=build_pending_kb(pending["id"]),
+            disable_web_page_preview=True,
         )
 
     async def run(self, *, event, user_lang: str = "ru", data: dict) -> None:
@@ -103,4 +97,5 @@ class PendingCardAnswer:
         await event.answer(
             render_pending_text(pending),
             reply_markup=build_pending_kb(pending["id"]),
+            disable_web_page_preview=True,
         )

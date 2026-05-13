@@ -83,6 +83,14 @@ class ChatMessageCode:
         if decision == "pending_created":
             pending = await self._pending_api.get(result["pending_task_id"])
             return {"answer_name": "pending_card_dm", "data": {"pending": pending}}
+        if decision == "pending_created_multi":
+            pendings = []
+            for pid in result.get("pending_task_ids", []):
+                pendings.append(await self._pending_api.get(pid))
+            return {
+                "answer_name": "pendings_multi_dm",
+                "data": {"pendings": pendings},
+            }
         if decision == "auto_approved":
             task = await self._tasks_api.get(result["task_id"])
             return {"answer_name": "task_created_dm", "data": {"task": task, "from_chat": True}}

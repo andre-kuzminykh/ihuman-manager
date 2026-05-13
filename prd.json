@@ -335,7 +335,9 @@
         {"rule_id": "BR013", "description": "Хранится контекст последних 10 сообщений на чат (sliding window)."},
         {"rule_id": "BR014", "description": "Если бот тегнут (@username) или ответ цитированием на бот-сообщение — задача apprоввится автоматически."},
         {"rule_id": "BR015", "description": "Задача всегда падает на user_id владельца бота в текущей версии (без распределения)."},
-        {"rule_id": "BR016", "description": "Дубли по (chat_id, message_id) не обрабатываются повторно."}
+        {"rule_id": "BR016", "description": "Дубли по (chat_id, message_id) не обрабатываются повторно."},
+        {"rule_id": "BR016a", "description": "Ингест всегда вызывает ExtractorService.extract_multiple — если LLM нашёл N задач, создаётся ровно N PendingTask (или Task при автоапруве). Одно сообщение никогда не превращается в один pending с двумя задачами в одном поле."},
+        {"rule_id": "BR016b", "description": "Дедуп F010 применяется отдельно к каждой извлечённой задаче (через create_or_find_duplicate)."}
       ],
       "acceptance_criteria": [
         {
@@ -381,6 +383,17 @@
             "then": "PendingTask.draft обновляется, при следующем апруве создаётся Task с новыми значениями",
             "and_postconditions": []
           }
+        },
+        {
+          "scenario_id": "SC014b",
+          "user_story": "Как CEO, я хочу получить ОТДЕЛЬНУЮ карточку на каждую задачу, если в одном сообщении их несколько.",
+          "bdd": {
+            "given": "Подписанный чат, сообщение 'купить молоко и сделать презентацию для партнёров до пятницы'",
+            "and_preconditions": ["LLM возвращает 2 задачи: 'Купить молоко' и 'Подготовить презентацию для партнёров'"],
+            "when": "Сообщение приходит в /api/v1/messages/ingest, is_bot_mentioned=false",
+            "then": "Создаются 2 PendingTask, бот шлёт владельцу 2 отдельные карточки",
+            "and_postconditions": ["decision='pending_created_multi', pending_task_ids.length=2"]
+          }
         }
       ],
       "non_functional_requirements": [
@@ -418,6 +431,14 @@
           "setup": "Есть PendingTask",
           "action": "PUT /api/v1/pending-tasks/{id} {draft: {...}}",
           "assertion": "draft обновлён",
+          "examples": []
+        },
+        {
+          "test_id": "T014b",
+          "scenario_id": "SC014b",
+          "setup": "Подписан чат, мок ExtractorService.extract_multiple → 2 задачи",
+          "action": "POST /api/v1/messages/ingest без тега",
+          "assertion": "decision='pending_created_multi', pending_task_ids.length == 2, каждая Pending имеет свой title/description/deadline/priority",
           "examples": []
         }
       ]
