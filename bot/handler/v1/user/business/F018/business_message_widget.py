@@ -52,12 +52,8 @@ async def on_business_message(message: Message) -> None:
     if not text:
         return
 
-    # Если сообщение отправил САМ владелец — пока пропускаем.
-    # Иначе бот вытащит задачи из собственных сообщений владельца, что
-    # обычно не нужно. Меняй это поведение при необходимости.
-    if message.from_user and message.from_user.id == owner:
-        log.info("business_message from owner — skipping ingest")
-        return
+    # Ингестим ВСЁ — и входящие, и сообщения самого владельца:
+    # его собственные «надо позвонить...», «напомни...» — тоже задачи.
 
     chats_api = ChatsAPI()
     # Авто-подписка чата (DM с этим контактом).

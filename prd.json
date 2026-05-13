@@ -1103,7 +1103,7 @@
       "business_rules": [
         {"rule_id": "BR047", "description": "При получении business_connection — upsert (business_connection_id, owner_user_id, is_enabled)."},
         {"rule_id": "BR048", "description": "is_enabled=False → задачи не извлекаются."},
-        {"rule_id": "BR049", "description": "Сообщения, отправленные самим владельцем (from.id == owner), пропускаются."},
+        {"rule_id": "BR049", "description": "Ингестируются ВСЕ сообщения в DM-чатах владельца — и входящие, и его собственные исходящие. Бот не пишет ни в один DM-чат от имени владельца, общение с ботом только через DM с самим ботом."},
         {"rule_id": "BR050", "description": "Для каждого DM-чата под business-владельцем автоматически создаётся ChatSubscription, чтобы переиспользовать ingest pipeline."}
       ],
       "acceptance_criteria": [
