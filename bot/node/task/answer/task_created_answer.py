@@ -8,6 +8,7 @@ Scenarios: SC001, SC004, SC006, SC009
 
 from __future__ import annotations
 
+import html
 from datetime import datetime
 
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup, Message
@@ -90,9 +91,10 @@ def build_task_card_kb(task: dict) -> InlineKeyboardMarkup:
 
 def render_task_card(task: dict, *, title_prefix: str = vocab.TASK_CREATED) -> str:
     fav_mark = "⭐ " if task.get("is_favorite") else ""
+    safe_title = html.escape(task.get("title", ""))
     return (
         f"{title_prefix}\n\n"
-        f"{fav_mark}<b>{task.get('title','')}</b>\n"
+        f"{fav_mark}<b>{safe_title}</b>\n"
         f"Статус: {vocab.status_label(task.get('status',''))}\n"
         f"Дедлайн: {_fmt_deadline(task.get('deadline'))}\n"
         f"План: {_fmt_deadline(task.get('planned_start_at'))} — "

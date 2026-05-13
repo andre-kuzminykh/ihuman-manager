@@ -8,6 +8,7 @@ Scenarios: SC012, SC014
 
 from __future__ import annotations
 
+import html
 from datetime import datetime
 
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
@@ -33,10 +34,10 @@ def render_pending_text(pending: dict) -> str:
     sender = pending.get("source_sender") or "—"
     return (
         f"{vocab.PENDING_CARD_TITLE}\n\n"
-        f"<b>{title}</b>\n"
+        f"<b>{html.escape(title)}</b>\n"
         f"Дедлайн: {deadline}\n"
-        f"Из чата: {pending.get('chat_id')} (от {sender})\n"
-        f"Исходный текст: <i>{pending.get('source_text','')}</i>"
+        f"Из чата: {pending.get('chat_id')} (от {html.escape(str(sender))})\n"
+        f"Исходный текст: <i>{html.escape(pending.get('source_text',''))}</i>"
     )
 
 

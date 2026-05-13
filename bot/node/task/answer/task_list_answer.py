@@ -8,6 +8,7 @@ Scenarios: SC006, SC009
 
 from __future__ import annotations
 
+import html
 from collections import defaultdict
 from datetime import datetime
 
@@ -42,10 +43,11 @@ class TaskListAnswer:
             chunk = groups.get(status, [])
             if not chunk:
                 continue
-            lines.append(f"\n<b>{vocab.status_label(status)}</b>")
+            lines.append(f"\n<b>{html.escape(vocab.status_label(status))}</b>")
             for t in chunk:
                 fav = "⭐ " if t.get("is_favorite") else ""
-                lines.append(f"• {fav}{t['title']} ({_fmt(t.get('deadline'))})")
+                title_safe = html.escape(t["title"])
+                lines.append(f"• {fav}{title_safe} ({_fmt(t.get('deadline'))})")
                 keyboard.append([
                     InlineKeyboardButton(
                         text=f"{fav}{t['title'][:32]}",

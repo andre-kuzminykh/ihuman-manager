@@ -10,6 +10,7 @@ Scenarios: SC018, SC019, SC028
 
 from __future__ import annotations
 
+import html
 from datetime import datetime
 
 from aiogram.types import Message
@@ -33,12 +34,12 @@ def render_digest(digest: dict, *, evening: bool = False) -> str:
         return f"{title}\n\n{vocab.NO_TASKS_TODAY}"
     lines = [title, ""]
     for group in digest.get("groups", []):
-        lines.append(f"<b>{group['label']}</b>")
+        lines.append(f"<b>{html.escape(group['label'])}</b>")
         for t in group.get("tasks", []):
             fav = "⭐ " if t.get("is_favorite") else ""
             ps = _fmt(t.get("planned_start_at"))
             ps_label = f"({ps}) " if ps else ""
-            lines.append(f"• {fav}{ps_label}{t['title']}")
+            lines.append(f"• {fav}{ps_label}{html.escape(t['title'])}")
         lines.append("")
     return "\n".join(lines).rstrip()
 

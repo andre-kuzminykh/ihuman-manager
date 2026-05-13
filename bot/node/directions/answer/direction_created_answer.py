@@ -6,6 +6,8 @@ Scenarios: SC022, SC024
 
 from __future__ import annotations
 
+import html
+
 from aiogram.types import Message
 
 
@@ -16,4 +18,5 @@ class DirectionCreatedAnswer:
             await event.answer(data.get("message") or "Не удалось создать направление")
             return
         fav = " ⭐" if direction.get("is_favorite") else ""
-        await event.answer(f"🧭 Направление создано: <b>{direction['name']}</b>{fav}")
+        name_safe = html.escape(direction["name"])
+        await event.answer(f"🧭 Направление создано: <b>{name_safe}</b>{fav}")
