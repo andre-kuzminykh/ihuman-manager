@@ -32,6 +32,8 @@ services:
       DB_NAME: ${DB_NAME:-ihuman_manager}
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       LLM_MODEL: ${LLM_MODEL:-gpt-4o-mini}
+      CLASSIFIER_MODEL: ${CLASSIFIER_MODEL:-gpt-4o-mini}
+      DECOMPOSER_MODEL: ${DECOMPOSER_MODEL:-gpt-4o}
       WHISPER_MODEL: ${WHISPER_MODEL:-whisper-1}
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
     ports:

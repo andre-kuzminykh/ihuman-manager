@@ -21,7 +21,13 @@ class Settings(BaseSettings):
 
     # LLM
     OPENAI_API_KEY: str = ""
+    # Двухступенчатый pipeline:
+    #  1) CLASSIFIER_MODEL — быстрый/дешёвый: «есть ли вообще задачи?»
+    #  2) DECOMPOSER_MODEL — мощный: декомпозиция в структурированный список
+    # LLM_MODEL остаётся для совместимости (используется в apply_edit и т.п.)
     LLM_MODEL: str = "gpt-4o-mini"
+    CLASSIFIER_MODEL: str = "gpt-4o-mini"
+    DECOMPOSER_MODEL: str = "gpt-4o"
     WHISPER_MODEL: str = "whisper-1"
 
     # Scheduler

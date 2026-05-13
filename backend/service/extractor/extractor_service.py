@@ -48,11 +48,23 @@ _DATE_RE = re.compile(r"\b(?P<d>\d{1,2})\.(?P<mo>\d{1,2})(?:\.(?P<y>\d{2,4}))?\b
 
 
 class ExtractorService:
+    """Двухступенчатый pipeline:
+       1) classifier (CLASSIFIER_MODEL, дёшево) — есть ли вообще задача?
+       2) decomposer (DECOMPOSER_MODEL, мощно) — структурированный список задач.
+    LLM_MODEL остаётся для apply_edit и classify_message (legacy).
+    """
+
     def __init__(
-        self, openai_api_key: str | None = None, llm_model: str | None = None
+        self,
+        openai_api_key: str | None = None,
+        llm_model: str | None = None,
+        classifier_model: str | None = None,
+        decomposer_model: str | None = None,
     ) -> None:
         self._api_key = openai_api_key if openai_api_key is not None else config.OPENAI_API_KEY
         self._model = llm_model or config.LLM_MODEL
+        self._classifier_model = classifier_model or config.CLASSIFIER_MODEL
+        self._decomposer_model = decomposer_model or config.DECOMPOSER_MODEL
         self._client = None
         if self._api_key:
             try:
@@ -262,23 +274,74 @@ class ExtractorService:
 
     MAX_MULTI_TASKS = 10
 
+    async def is_message_taskful(
+        self,
+        text: str,
+        *,
+        context_messages: list[dict] | None = None,
+    ) -> bool:
+        """Быстрый классификатор: есть ли в сообщении хотя бы одна задача?
+
+        Использует CLASSIFIER_MODEL (дешёвая/быстрая). При отсутствии LLM —
+        эвристика по словам-маркерам.
+
+        ## Трассируемость
+        Feature: F015, F019 (двухступенчатый pipeline)
+        """
+        if self._client is None:
+            return self._heuristic_classify(text).get("is_task", False)
+        try:
+            context_text = "\n".join(
+                f"{m.get('sender_username') or 'user'}: {m.get('text','')}"
+                for m in (context_messages or [])
+            )
+            system = (
+                "Ты — классификатор. Получаешь сообщение и контекст. Решаешь, "
+                "содержит ли оно хотя бы одну задачу/поручение/обещание сделать "
+                "что-то конкретное. Ответ — строгий JSON: "
+                '{"has_task": bool, "reason": str}. '
+                "has_task=true только если в сообщении есть осмысленное "
+                "действие, у которого есть исполнитель (явный или подразумеваемый), "
+                "и оно НЕ описывает уже свершившееся прошлое."
+            )
+            user = f"Контекст:\n{context_text}\n\nСообщение:\n{text}"
+            resp = await self._client.chat.completions.create(
+                model=self._classifier_model,
+                messages=[{"role": "system", "content": system}, {"role": "user", "content": user}],
+                response_format={"type": "json_object"},
+                temperature=0,
+            )
+            raw = resp.choices[0].message.content or "{}"
+            data = json.loads(raw)
+            return bool(data.get("has_task", False))
+        except Exception as exc:  # pragma: no cover
+            log.warning("LLM classifier failed: %s — heuristic", exc)
+            return self._heuristic_classify(text).get("is_task", False)
+
     async def extract_multiple(
         self,
         text: str,
         *,
         context_messages: list[dict] | None = None,
     ) -> list[dict]:
-        """Извлекает массив задач из одного сообщения.
+        """Двухступенчатое извлечение задач.
 
         ## Трассируемость
-        Feature: F015 (BR042–BR046)
+        Feature: F015 (BR042–BR046), F019 (two-stage pipeline)
         Scenarios: SC033, SC034, SC035
 
-        Возвращает список dict: {title, text, deadline (datetime|None), confidence}.
-        Пустой список значит «не задача».
+        Pipeline:
+          1) is_message_taskful (CLASSIFIER_MODEL) — фильтр пустого трепа.
+          2) decomposer (DECOMPOSER_MODEL) — структурированный список задач.
         """
         if self._client is None:
             return self._heuristic_extract_multiple(text)
+
+        # Stage 1: классификатор.
+        taskful = await self.is_message_taskful(text, context_messages=context_messages)
+        if not taskful:
+            log.info("classifier: not taskful, skipping decomposer")
+            return []
 
         try:
             now_iso = now_msk().isoformat()
@@ -307,7 +370,7 @@ class ExtractorService:
             )
             user_prompt = f"Контекст:\n{context_text}\n\nСообщение:\n{text}"
             resp = await self._client.chat.completions.create(
-                model=self._model,
+                model=self._decomposer_model,
                 messages=[
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": user_prompt},

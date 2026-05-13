@@ -1172,6 +1172,73 @@
           "examples": []
         }
       ]
+    },
+    {
+      "feature_id": "F019",
+      "general_info": {
+        "name": "Двухступенчатый экстрактор задач",
+        "overview": "Этап 1 — лёгкий CLASSIFIER_MODEL отвечает {has_task: bool}. Этап 2 — мощный DECOMPOSER_MODEL разбивает сообщение в структурированный список задач. Если этап 1 has_task=false — декомпозер не вызывается."
+      },
+      "goal_and_context": {
+        "business_goal": "Сократить стоимость и латентность для треп-сообщений без потерь качества декомпозиции.",
+        "user_problem": "Прогон каждого сообщения через дорогую модель — медленно и дорого."
+      },
+      "actors_and_roles": {
+        "primary_user": "Владелец задач",
+        "secondary_user": null,
+        "system_service": "ExtractorService"
+      },
+      "business_rules": [
+        {"rule_id": "BR051", "description": "CLASSIFIER_MODEL и DECOMPOSER_MODEL читаются из env. Дефолты: gpt-4o-mini и gpt-4o."},
+        {"rule_id": "BR052", "description": "Если classifier вернул has_task=false — extract_multiple возвращает [] без вызова decomposer."},
+        {"rule_id": "BR053", "description": "Без OPENAI_API_KEY оба этапа падают на эвристический фоллбек."}
+      ],
+      "acceptance_criteria": [
+        {
+          "scenario_id": "SC038",
+          "user_story": "Как разработчик, я хочу чтобы пустой треп не доходил до дорогой модели.",
+          "bdd": {
+            "given": "classifier mock возвращает has_task=false",
+            "and_preconditions": [],
+            "when": "extract_multiple('привет как дела')",
+            "then": "decomposer не вызывается, возвращается []",
+            "and_postconditions": []
+          }
+        },
+        {
+          "scenario_id": "SC039",
+          "user_story": "Сообщение с двумя задачами проходит обе ступени.",
+          "bdd": {
+            "given": "classifier mock → True, decomposer mock → 2 задачи",
+            "and_preconditions": [],
+            "when": "extract_multiple",
+            "then": "Получаем список из 2 задач со всеми полями",
+            "and_postconditions": []
+          }
+        }
+      ],
+      "non_functional_requirements": [
+        {"nfr_id": "NFR009", "type": "performance", "description": "non-task сообщение должно укладываться в 1.5 сек (только classifier)."},
+        {"nfr_id": "NFR010", "type": "cost", "description": "стоимость non-task сообщения ~10% от единого decomposer-вызова."}
+      ],
+      "test_cases": [
+        {
+          "test_id": "T038",
+          "scenario_id": "SC038",
+          "setup": "monkeypatch is_message_taskful → False",
+          "action": "extract_multiple('привет')",
+          "assertion": "результат [], decomposer.create не вызван",
+          "examples": []
+        },
+        {
+          "test_id": "T039",
+          "scenario_id": "SC039",
+          "setup": "is_message_taskful → True; decomposer → 2 задачи",
+          "action": "extract_multiple",
+          "assertion": "len(result) == 2",
+          "examples": []
+        }
+      ]
     }
   ]
 }
