@@ -23,19 +23,29 @@ class APIError(Exception):
 
 
 class BaseAPI:
+    DEFAULT_TIMEOUT = 30.0
+    SLOW_PATHS = ("/llm-edit", "/extract", "/voice/transcribe", "/messages/ingest")
+
     def __init__(self, base_url: str | None = None) -> None:
         self._base_url = (base_url or config.backend_base).rstrip("/")
 
-    def _client(self) -> httpx.AsyncClient:
+    def _timeout_for(self, path: str) -> float:
+        # LLM/voice идут к OpenAI — даём больше времени.
+        if any(p in path for p in self.SLOW_PATHS):
+            return 120.0
+        return self.DEFAULT_TIMEOUT
+
+    def _client(self, timeout: float) -> httpx.AsyncClient:
         # follow_redirects=True — FastAPI 0.115 редиректит /tasks → /tasks/
         return httpx.AsyncClient(
-            base_url=self._base_url, timeout=30.0, follow_redirects=True
+            base_url=self._base_url, timeout=timeout, follow_redirects=True
         )
 
     async def _request(
         self, method: str, path: str, **kwargs: Any
     ) -> Any:
-        async with self._client() as client:
+        timeout = self._timeout_for(path)
+        async with self._client(timeout) as client:
             resp = await client.request(method, path, **kwargs)
         if resp.status_code >= 400:
             body = self._safe_json(resp)

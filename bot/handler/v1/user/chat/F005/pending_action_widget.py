@@ -60,8 +60,15 @@ def _render_edit_draft(pending: dict) -> str:
 
 @router.callback_query(PendingActionCallback.filter(F.action == "approve"))
 async def on_approve(cb: CallbackQuery, callback_data: PendingActionCallback) -> None:
+    await cb.answer("Сохраняю…")  # сразу gasit «крутилку» Telegram
     code = PendingApproveCode()
-    result = await code.approve(callback_data.pending_id)
+    try:
+        result = await code.approve(callback_data.pending_id)
+    except Exception as exc:
+        await cb.message.answer(
+            f"⚠️ Не смог сохранить ({type(exc).__name__}). Попробуй ещё раз."
+        ) if cb.message else None
+        return
     if result["answer_name"] == "task_created":
         await TaskCardAnswer().run(
             event=cb,
@@ -69,7 +76,9 @@ async def on_approve(cb: CallbackQuery, callback_data: PendingActionCallback) ->
             data={"task": result["data"]["task"], "title_prefix": "✅ Задача создана"},
         )
     else:
-        await cb.answer(result["data"].get("message", "Ошибка"), show_alert=True)
+        await cb.message.answer(
+            f"⚠️ {result['data'].get('message', 'Ошибка при создании задачи')}"
+        ) if cb.message else None
 
 
 @router.callback_query(PendingActionCallback.filter(F.action == "reject"))
@@ -118,13 +127,21 @@ async def on_edit_text(message: Message, state: FSMContext) -> None:
     if not pending_id or not message.text:
         await state.clear()
         return
+    thinking = await message.answer("⏳ Думаю…")
     api = PendingTasksAPI()
     try:
         updated = await api.llm_edit(pending_id, message.text.strip())
     except APIError as exc:
-        await message.answer(f"Ошибка: {exc.message}")
+        await thinking.edit_text(f"Ошибка: {exc.message}")
         await state.clear()
         return
+    except Exception as exc:
+        await thinking.edit_text(
+            f"Бэкенд долго отвечает / недоступен ({type(exc).__name__}). Попробуй ещё раз."
+        )
+        await state.clear()
+        return
+    await thinking.delete()
     await message.answer(
         render_pending_text(updated),
         reply_markup=build_pending_kb(updated["id"]),
