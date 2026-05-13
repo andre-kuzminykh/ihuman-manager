@@ -1,18 +1,19 @@
 """
-DigestAnswer — утренний дайджест.
+DigestAnswer — утренний/вечерний дайджест.
 
 ## Трассируемость
-Feature: F007
-Scenarios: SC018, SC019
+Feature: F007, F011
+Scenarios: SC018, SC019, SC028
+
+Без кнопок: просто чистый список задач.
 """
 
 from __future__ import annotations
 
 from datetime import datetime
 
-from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup, Message
+from aiogram.types import Message
 
-from callback.digest_callback import DigestActionCallback
 from core import vocab
 from core.loader import get_bot
 
@@ -42,36 +43,14 @@ def render_digest(digest: dict, *, evening: bool = False) -> str:
     return "\n".join(lines).rstrip()
 
 
-def build_digest_kb() -> InlineKeyboardMarkup:
-    return InlineKeyboardMarkup(
-        inline_keyboard=[
-            [
-                InlineKeyboardButton(
-                    text="🟢 Начать день",
-                    callback_data=DigestActionCallback(action="start_day").pack(),
-                ),
-                InlineKeyboardButton(
-                    text="🔄 Обновить",
-                    callback_data=DigestActionCallback(action="refresh").pack(),
-                ),
-            ]
-        ]
-    )
-
-
 class DigestAnswer:
     async def send(
         self, *, owner_chat_id: int, digest: dict, evening: bool = False
     ) -> None:
         bot = get_bot()
-        await bot.send_message(
-            owner_chat_id,
-            render_digest(digest, evening=evening),
-            reply_markup=build_digest_kb(),
-        )
+        await bot.send_message(owner_chat_id, render_digest(digest, evening=evening))
 
     async def run(self, *, event: Message, user_lang: str = "ru", data: dict) -> None:
         await event.answer(
             render_digest(data["digest"], evening=data.get("evening", False)),
-            reply_markup=build_digest_kb(),
         )

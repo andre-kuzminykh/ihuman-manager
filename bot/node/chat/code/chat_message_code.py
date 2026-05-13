@@ -10,12 +10,14 @@ Scenarios: SC012, SC013
 2. Передать в /messages/ingest.
 3. По decision:
    - pending_created → owner получит карточку (см. PendingCardAnswer).
-   - auto_approved → owner получит карточку созданной задачи.
-   - ignored / duplicate / not_subscribed → ничего.
+   - auto_approved / auto_approved_multi → owner получит карточку(и) задач.
+   - not_subscribed + бот тегнут → ответить в чате просьбой вызвать /setup_chat.
+   - ignored / duplicate без тега — silent.
 """
 
 from __future__ import annotations
 
+import logging
 from datetime import datetime, timezone
 
 from aiogram.types import Message
@@ -25,6 +27,9 @@ from service.api.base_api import APIError
 from service.api.chats_api import ChatsAPI
 from service.api.pending_tasks_api import PendingTasksAPI
 from service.api.tasks_api import TasksAPI
+
+
+log = logging.getLogger("chat_message_code")
 
 
 def _is_bot_mentioned(message: Message) -> bool:
@@ -48,6 +53,15 @@ class ChatMessageCode:
         text = (message.text or message.caption or "").strip()
         if not text:
             return {"answer_name": "noop", "data": {}}
+        mentioned = _is_bot_mentioned(message)
+        log.info(
+            "incoming chat message: chat_id=%s msg_id=%s sender=%s mentioned=%s text=%r",
+            message.chat.id,
+            message.message_id,
+            message.from_user.username if message.from_user else None,
+            mentioned,
+            text[:160],
+        )
         sent_at = message.date or datetime.now(timezone.utc)
         try:
             result = await self._chats_api.ingest_message(
@@ -57,12 +71,15 @@ class ChatMessageCode:
                 sender_username=message.from_user.username if message.from_user else None,
                 text=text,
                 sent_at=sent_at,
-                is_bot_mentioned=_is_bot_mentioned(message),
+                is_bot_mentioned=mentioned,
             )
-        except APIError:
+        except APIError as exc:
+            log.warning("ingest API failed: %s", exc.message)
             return {"answer_name": "noop", "data": {}}
 
         decision = result.get("decision")
+        log.info("ingest decision=%s payload=%s", decision, result)
+
         if decision == "pending_created":
             pending = await self._pending_api.get(result["pending_task_id"])
             return {"answer_name": "pending_card_dm", "data": {"pending": pending}}
@@ -77,4 +94,6 @@ class ChatMessageCode:
                 "answer_name": "tasks_created_multi_dm",
                 "data": {"tasks": tasks, "from_chat": True},
             }
+        if decision == "not_subscribed" and mentioned:
+            return {"answer_name": "not_subscribed_reply", "data": {}}
         return {"answer_name": "noop", "data": {"decision": decision}}

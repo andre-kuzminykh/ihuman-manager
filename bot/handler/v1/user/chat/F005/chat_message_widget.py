@@ -59,3 +59,9 @@ async def on_chat_message(message: Message) -> None:
             await bot.send_message(
                 owner_id, render_task_card(t), reply_markup=build_task_card_kb(t)
             )
+    elif decision == "not_subscribed_reply":
+        # бота тегнули, но /setup_chat в этом чате не вызывали
+        await message.reply(
+            "Чтобы я слушал этот чат, кто-то должен вызвать здесь /setup_chat. "
+            "Я заведу подписку и буду присылать карточки задач."
+        )
