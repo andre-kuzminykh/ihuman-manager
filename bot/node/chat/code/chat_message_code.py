@@ -94,6 +94,4 @@ class ChatMessageCode:
                 "answer_name": "tasks_created_multi_dm",
                 "data": {"tasks": tasks, "from_chat": True},
             }
-        if decision == "not_subscribed" and mentioned:
-            return {"answer_name": "not_subscribed_reply", "data": {}}
         return {"answer_name": "noop", "data": {"decision": decision}}

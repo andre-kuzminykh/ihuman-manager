@@ -53,19 +53,16 @@ async def on_my_chat_member(event: ChatMemberUpdated) -> None:
         log.warning("auto-subscribe failed: %s", exc.message)
         return
 
-    # Дружелюбное «привет, я готов» в чат (если есть права писать).
+    # В чат НИЧЕГО не пишем — тихо подписались.
+    # Опционально, короткий DM владельцу — что добавлен чат.
     try:
         from core.loader import get_bot
 
         bot = get_bot()
         await bot.send_message(
-            event.chat.id,
-            "Привет! Я iHuman Manager.\n"
-            "Буду слушать чат и присылать задачи владельцу на согласование. "
-            "Тегайте меня @{username}, чтобы создать задачу без согласования. "
-            "Чтобы перестать — удалите меня из чата.".format(
-                username=(await bot.get_me()).username
-            ),
+            event.from_user.id,
+            f"✅ Подписался на чат «{event.chat.title or event.chat.id}». "
+            "Буду слушать и присылать задачи сюда в DM.",
         )
-    except Exception:  # pragma: no cover — права на пост могут отсутствовать
-        log.info("welcome message not sent (no rights or other issue)")
+    except Exception:  # pragma: no cover — пользователь мог не нажать /start
+        log.info("owner DM not sent (likely user hasn't started the bot)")

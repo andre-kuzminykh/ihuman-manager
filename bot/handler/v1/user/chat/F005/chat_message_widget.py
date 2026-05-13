@@ -59,10 +59,4 @@ async def on_chat_message(message: Message) -> None:
             await bot.send_message(
                 owner_id, render_task_card(t), reply_markup=build_task_card_kb(t)
             )
-    elif decision == "not_subscribed_reply":
-        # На случай если автоподписка не сработала (например, бот пишет в чат,
-        # где раньше использовалась другая БД или подписка была отключена).
-        await message.reply(
-            "Похоже, я не подписан на этот чат. Удали меня и добавь заново — "
-            "или вызови /setup_chat прямо здесь."
-        )
+    # not_subscribed / ignored / duplicate — никаких сообщений в чат не шлём.
