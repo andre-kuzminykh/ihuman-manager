@@ -21,6 +21,7 @@ from aiogram.types import Message
 from node.task.answer.duplicate_found_answer import DuplicateFoundAnswer
 from node.task.answer.task_created_answer import TaskCreatedAnswer
 from node.task.answer.task_empty_error_answer import TaskEmptyErrorAnswer
+from node.task.answer.tasks_multi_answer import TasksMultiAnswer
 from node.task.code.new_task_code import NewTaskCode
 from node.task.trigger.new_task_trigger import NewTaskTrigger
 
@@ -31,6 +32,7 @@ _ANSWER_REGISTRY = {
     "task_created": TaskCreatedAnswer(),
     "task_empty_error": TaskEmptyErrorAnswer(),
     "duplicate_found": DuplicateFoundAnswer(),
+    "tasks_created_multi": TasksMultiAnswer(),
 }
 
 

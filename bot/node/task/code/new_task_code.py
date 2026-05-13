@@ -2,8 +2,8 @@
 NewTaskCode — создание задачи + выбор Answer.
 
 ## Трассируемость
-Feature: F001, F002
-Scenarios: SC001, SC002, SC003, SC004
+Feature: F001, F002, F010, F015
+Scenarios: SC001, SC002, SC003, SC004, SC025, SC033, SC034
 """
 
 from __future__ import annotations
@@ -23,19 +23,24 @@ class NewTaskCode:
         if not text:
             return {"answer_name": "task_empty_error", "data": {}}
         try:
-            task = await self._api.create(
+            result = await self._api.create_batch(
                 user_id=trigger_data["user_id"],
                 text=text,
                 source_kind=trigger_data.get("source_kind", "text"),
                 force=bool(trigger_data.get("force", False)),
             )
         except APIError as exc:
-            if exc.status_code == 422:
-                return {"answer_name": "task_empty_error", "data": {"message": exc.message}}
             return {"answer_name": "task_empty_error", "data": {"message": exc.message}}
-        if task.get("is_duplicate"):
-            return {
-                "answer_name": "duplicate_found",
-                "data": {"task": task, "raw_text": text},
-            }
-        return {"answer_name": "task_created", "data": {"task": task}}
+
+        tasks: list[dict] = result.get("tasks", []) if isinstance(result, dict) else []
+        if not tasks:
+            return {"answer_name": "task_empty_error", "data": {"message": "Не нашёл задач в сообщении"}}
+
+        if len(tasks) == 1:
+            t = tasks[0]
+            if t.get("is_duplicate"):
+                return {"answer_name": "duplicate_found", "data": {"task": t, "raw_text": text}}
+            return {"answer_name": "task_created", "data": {"task": t}}
+
+        # multi (F015)
+        return {"answer_name": "tasks_created_multi", "data": {"tasks": tasks}}

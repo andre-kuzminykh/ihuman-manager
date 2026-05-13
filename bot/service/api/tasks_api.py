@@ -46,6 +46,31 @@ class TasksAPI(BaseAPI):
             body["direction_id"] = direction_id
         return await self._request("POST", "/tasks", json=body)
 
+    async def create_batch(
+        self,
+        *,
+        user_id: int,
+        text: str,
+        chat_id: int | None = None,
+        source_message_id: int | None = None,
+        source_kind: str = "text",
+        force: bool = False,
+        context_messages: list[dict] | None = None,
+    ) -> dict:
+        """F015: извлечь и создать N задач из одного сообщения."""
+        body: dict[str, Any] = {
+            "user_id": user_id,
+            "text": text,
+            "source_kind": source_kind,
+            "force": force,
+            "context_messages": context_messages or [],
+        }
+        if chat_id is not None:
+            body["chat_id"] = chat_id
+        if source_message_id is not None:
+            body["source_message_id"] = source_message_id
+        return await self._request("POST", "/tasks/batch", json=body)
+
     async def list(
         self,
         *,

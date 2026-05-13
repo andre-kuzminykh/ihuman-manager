@@ -46,3 +46,16 @@ async def on_chat_message(message: Message) -> None:
             "📥 Задача из чата (автоапрув):\n\n" + render_task_card(task),
             reply_markup=build_task_card_kb(task),
         )
+    elif decision == "tasks_created_multi_dm":
+        tasks = result["data"]["tasks"]
+        if not tasks:
+            return
+        bot = get_bot()
+        owner_id = tasks[0]["user_id"]
+        await bot.send_message(
+            owner_id, f"📥 Из чата извлечено задач: {len(tasks)}"
+        )
+        for t in tasks:
+            await bot.send_message(
+                owner_id, render_task_card(t), reply_markup=build_task_card_kb(t)
+            )

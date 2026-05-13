@@ -69,4 +69,12 @@ class ChatMessageCode:
         if decision == "auto_approved":
             task = await self._tasks_api.get(result["task_id"])
             return {"answer_name": "task_created_dm", "data": {"task": task, "from_chat": True}}
+        if decision == "auto_approved_multi":
+            tasks = []
+            for tid in result.get("task_ids", []):
+                tasks.append(await self._tasks_api.get(tid))
+            return {
+                "answer_name": "tasks_created_multi_dm",
+                "data": {"tasks": tasks, "from_chat": True},
+            }
         return {"answer_name": "noop", "data": {"decision": decision}}

@@ -37,14 +37,24 @@ class VoiceCode:
         if not text.strip():
             return {"answer_name": "voice_failed", "data": {}}
         try:
-            task = await self._tasks_api.create(
+            result = await self._tasks_api.create_batch(
                 user_id=trigger_data["user_id"], text=text, source_kind="voice"
             )
         except APIError as exc:
             return {"answer_name": "voice_failed", "data": {"message": exc.message}}
-        if task.get("is_duplicate"):
+
+        tasks: list[dict] = result.get("tasks", []) if isinstance(result, dict) else []
+        if not tasks:
+            return {"answer_name": "voice_failed", "data": {"message": "Не нашёл задач в голосе"}}
+        if len(tasks) == 1:
+            t = tasks[0]
+            if t.get("is_duplicate"):
+                return {"answer_name": "duplicate_found", "data": {"task": t, "raw_text": text}}
             return {
-                "answer_name": "duplicate_found",
-                "data": {"task": task, "raw_text": text},
+                "answer_name": "task_created",
+                "data": {"task": t, "transcribed_text": text},
             }
-        return {"answer_name": "task_created", "data": {"task": task, "transcribed_text": text}}
+        return {
+            "answer_name": "tasks_created_multi",
+            "data": {"tasks": tasks, "transcribed_text": text},
+        }

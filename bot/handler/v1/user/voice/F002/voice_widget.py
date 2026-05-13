@@ -15,6 +15,7 @@ from aiogram.types import Message
 
 from node.task.answer.duplicate_found_answer import DuplicateFoundAnswer
 from node.task.answer.task_created_answer import TaskCreatedAnswer
+from node.task.answer.tasks_multi_answer import TasksMultiAnswer
 from node.voice.answer.voice_failed_answer import VoiceFailedAnswer
 from node.voice.code.voice_code import VoiceCode
 from node.voice.trigger.voice_trigger import VoiceTrigger
@@ -26,6 +27,7 @@ _ANSWER_REGISTRY = {
     "task_created": TaskCreatedAnswer(),
     "voice_failed": VoiceFailedAnswer(),
     "duplicate_found": DuplicateFoundAnswer(),
+    "tasks_created_multi": TasksMultiAnswer(),
 }
 
 

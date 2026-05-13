@@ -32,6 +32,7 @@ from schema.chats.message_ingest_schema import (
 from service.chats.chat_subscription_service import ChatSubscriptionService
 from service.chats.pending_task_service import PendingTaskService
 from service.extractor.extractor_service import ExtractorService
+from service.tasks.task_service import TaskService
 from service.utils.time_utils import today_msk_default_deadline
 
 
@@ -43,11 +44,13 @@ class MessageIngestService:
         processed_repo: ProcessedMessageRepository | None = None,
         pending_service: PendingTaskService | None = None,
         extractor: ExtractorService | None = None,
+        task_service: TaskService | None = None,
     ) -> None:
         self._sub_service = sub_service or ChatSubscriptionService()
         self._msg_repo = msg_repo or MessageContextRepository()
         self._processed_repo = processed_repo or ProcessedMessageRepository()
         self._pending_service = pending_service or PendingTaskService()
+        self._task_service = task_service or TaskService()
         self._extractor = extractor or ExtractorService()
 
     async def ingest(
@@ -89,7 +92,38 @@ class MessageIngestService:
             if m.message_id != payload.message_id
         ]
 
-        # 5. classify
+        # 5a. multi-task path для тегнутого бота (F015 BR046)
+        if payload.is_bot_mentioned:
+            from model.enums import TaskSource as _TaskSource
+
+            extracted = await self._extractor.extract_multiple(
+                payload.text, context_messages=context_payload
+            )
+            if not extracted:
+                return MessageIngestResultSchema(
+                    decision="ignored", detail="not_a_task"
+                )
+            results = await self._task_service.create_many_from_extraction(
+                session,
+                user_id=sub.owner_user_id,
+                extracted=extracted,
+                chat_id=payload.chat_id,
+                source_message_id=payload.message_id,
+                source_kind=_TaskSource.CHAT,
+            )
+            task_ids = [t.id for t, _ in results]
+            if len(task_ids) > 1:
+                return MessageIngestResultSchema(
+                    decision="auto_approved_multi",
+                    task_ids=task_ids,
+                )
+            return MessageIngestResultSchema(
+                decision="auto_approved",
+                task_id=task_ids[0] if task_ids else None,
+                task_ids=task_ids,
+            )
+
+        # 5b. одна задача → согласование (как было)
         classification = await self._extractor.classify_message(
             payload.text, context_messages=context_payload
         )
@@ -98,7 +132,6 @@ class MessageIngestService:
                 decision="ignored", detail="not_a_task"
             )
 
-        # 6. draft
         deadline = classification.get("deadline")
         if deadline is None:
             deadline = await self._extractor.parse_deadline(payload.text)
@@ -120,16 +153,8 @@ class MessageIngestService:
             source_text=payload.text,
             source_sender=payload.sender_username,
             draft=draft,
-            is_auto_approved=payload.is_bot_mentioned,
+            is_auto_approved=False,
         )
-
-        if payload.is_bot_mentioned:
-            approved = await self._pending_service.approve(session, pending.id)
-            return MessageIngestResultSchema(
-                decision="auto_approved",
-                pending_task_id=approved.id,
-                task_id=approved.created_task_id,
-            )
 
         return MessageIngestResultSchema(
             decision="pending_created",

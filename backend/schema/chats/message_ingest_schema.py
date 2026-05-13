@@ -23,7 +23,15 @@ class MessageIngestSchema(BaseModel):
 
 
 class MessageIngestResultSchema(BaseModel):
-    decision: Literal["ignored", "pending_created", "auto_approved", "duplicate", "not_subscribed"]
+    decision: Literal[
+        "ignored",
+        "pending_created",
+        "auto_approved",
+        "auto_approved_multi",
+        "duplicate",
+        "not_subscribed",
+    ]
     pending_task_id: int | None = None
     task_id: int | None = None
+    task_ids: list[int] = []
     detail: str | None = None

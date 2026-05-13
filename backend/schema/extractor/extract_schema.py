@@ -29,3 +29,19 @@ class ExtractResponseSchema(BaseModel):
     deadline: datetime | None
     confidence: float = 0.0
     rationale: str | None = None
+
+
+class ExtractedTaskSchema(BaseModel):
+    """Одна задача в multi-extract результате (F015)."""
+
+    title: str
+    text: str
+    deadline: datetime | None = None
+    confidence: float = 0.0
+
+
+class ExtractMultiResponseSchema(BaseModel):
+    """Список задач, извлечённых из одного сообщения (F015)."""
+
+    tasks: list[ExtractedTaskSchema] = []
+    rationale: str | None = None

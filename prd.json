@@ -997,6 +997,93 @@
           "examples": []
         }
       ]
+    },
+    {
+      "feature_id": "F015",
+      "general_info": {
+        "name": "Извлечение нескольких задач из одного сообщения",
+        "overview": "Если в тексте или голосовом сообщении несколько отдельных задач — LLM возвращает массив, бот создаёт каждую отдельной задачей и шлёт сводную карточку. Применяется к DM-тексту, голосу, и сообщениям из подписанных чатов."
+      },
+      "goal_and_context": {
+        "business_goal": "Снизить трение: за одно сообщение можно завести список дел.",
+        "user_problem": "Без этого пользователь дробит мысли на отдельные сообщения."
+      },
+      "actors_and_roles": {
+        "primary_user": "Владелец задач",
+        "secondary_user": null,
+        "system_service": "ExtractorService.extract_multiple"
+      },
+      "business_rules": [
+        {"rule_id": "BR042", "description": "Если LLM возвращает 0 задач — поведение как старая classify (текст не является задачей)."},
+        {"rule_id": "BR043", "description": "Если 1 задача — поведение идентично F001/F002/F005."},
+        {"rule_id": "BR044", "description": "Если 2+ задач — каждая проходит дедуп (F010) независимо; затем каждая создаётся, ответ содержит список созданных + дублей."},
+        {"rule_id": "BR045", "description": "Лимит — не более 10 задач из одного сообщения (защита от шумовых LLM-ответов)."},
+        {"rule_id": "BR046", "description": "В подписанном чате (F005): если бот тегнут — каждая задача автоапрувится; иначе все создаются как PendingTask."}
+      ],
+      "acceptance_criteria": [
+        {
+          "scenario_id": "SC033",
+          "user_story": "Как пользователь, я хочу прислать 'позвонить Алине и подготовить отчёт до пятницы' и получить две задачи.",
+          "bdd": {
+            "given": "U1 подписан на бота, LLM-extractor доступен",
+            "and_preconditions": [],
+            "when": "U1 шлёт '/new позвонить Алине и подготовить отчёт до пятницы'",
+            "then": "Создаются 2 задачи: 'Позвонить Алине' (deadline=сегодня 18:00) и 'Подготовить отчёт' (deadline=ближайшая пятница 18:00)",
+            "and_postconditions": ["Бот шлёт сводное сообщение и 2 карточки"]
+          }
+        },
+        {
+          "scenario_id": "SC034",
+          "user_story": "Как пользователь, я хочу получить одну задачу, если в сообщении одна.",
+          "bdd": {
+            "given": "U1 шлёт 'позвонить Алине'",
+            "and_preconditions": [],
+            "when": "/new",
+            "then": "Создаётся ровно 1 задача — поведение совпадает с F001",
+            "and_postconditions": []
+          }
+        },
+        {
+          "scenario_id": "SC035",
+          "user_story": "В групповом чате с тегом бота — несколько задач сразу апрувятся.",
+          "bdd": {
+            "given": "Чат подписан",
+            "and_preconditions": [],
+            "when": "В чат: '@ihuman_manager_bot позвонить Алине и подготовить отчёт до пятницы'",
+            "then": "Обе задачи создаются автоматом (без согласования)",
+            "and_postconditions": []
+          }
+        }
+      ],
+      "non_functional_requirements": [
+        {"nfr_id": "NFR007", "type": "performance", "description": "Multi-extract ≤ 7 секунд на сообщение из 200 слов."}
+      ],
+      "test_cases": [
+        {
+          "test_id": "T033",
+          "scenario_id": "SC033",
+          "setup": "Мок ExtractorService.extract_multiple → 2 задачи",
+          "action": "POST /api/v1/extract/multi {text:'...'}",
+          "assertion": "tasks.length == 2, у каждой title и deadline",
+          "examples": []
+        },
+        {
+          "test_id": "T034",
+          "scenario_id": "SC034",
+          "setup": "Мок extract_multiple → 1 задача",
+          "action": "POST /api/v1/extract/multi",
+          "assertion": "tasks.length == 1",
+          "examples": []
+        },
+        {
+          "test_id": "T035",
+          "scenario_id": "SC035",
+          "setup": "Subscribed chat + is_bot_mentioned=true",
+          "action": "POST /api/v1/messages/ingest с multi-task текстом",
+          "assertion": "decision='auto_approved_multi', task_ids.length>=2",
+          "examples": []
+        }
+      ]
     }
   ]
 }

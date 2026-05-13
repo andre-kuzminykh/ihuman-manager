@@ -199,6 +199,49 @@ class TaskService:
         )
         return task, False
 
+    async def create_many_from_extraction(
+        self,
+        session: AsyncSession,
+        *,
+        user_id: int,
+        extracted: list[dict],
+        chat_id: int | None = None,
+        source_message_id: int | None = None,
+        source_kind: TaskSource = TaskSource.TEXT,
+        now: datetime | None = None,
+        force: bool = False,
+    ) -> list[tuple[TaskModel, bool]]:
+        """Создать несколько задач из мульти-extract результата.
+
+        ## Трассируемость
+        Feature: F015 (BR044)
+        Scenarios: SC033, SC035
+
+        Возвращает список (task, is_duplicate). Дедуп применяется к каждой.
+        """
+        if not extracted:
+            return []
+        out: list[tuple[TaskModel, bool]] = []
+        for item in extracted:
+            title = (item.get("title") or "").strip()
+            text = (item.get("text") or title).strip()
+            if not text:
+                continue
+            task, dup = await self.create_or_find_duplicate(
+                session,
+                user_id=user_id,
+                text=text,
+                chat_id=chat_id,
+                source_message_id=source_message_id,
+                source_kind=source_kind,
+                title=title or None,
+                deadline=item.get("deadline"),
+                now=now,
+                force=force,
+            )
+            out.append((task, dup))
+        return out
+
     # ------- read -------
 
     async def get_or_404(self, session: AsyncSession, task_id: int) -> TaskModel:

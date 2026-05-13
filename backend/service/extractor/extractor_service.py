@@ -257,3 +257,127 @@ class ExtractorService:
             "confidence": 0.5 if is_task else 0.1,
             "rationale": "heuristic_fallback",
         }
+
+    # ---------- multi-task ----------
+
+    MAX_MULTI_TASKS = 10
+
+    async def extract_multiple(
+        self,
+        text: str,
+        *,
+        context_messages: list[dict] | None = None,
+    ) -> list[dict]:
+        """Извлекает массив задач из одного сообщения.
+
+        ## Трассируемость
+        Feature: F015 (BR042–BR046)
+        Scenarios: SC033, SC034, SC035
+
+        Возвращает список dict: {title, text, deadline (datetime|None), confidence}.
+        Пустой список значит «не задача».
+        """
+        if self._client is None:
+            return self._heuristic_extract_multiple(text)
+
+        try:
+            now_iso = now_msk().isoformat()
+            context_text = "\n".join(
+                f"{m.get('sender_username') or 'user'}: {m.get('text','')}"
+                for m in (context_messages or [])
+            )
+            system_prompt = (
+                "Ты — экстрактор задач. Получаешь сообщение пользователя и контекст. "
+                "Извлеки все самостоятельные задачи (от одной до нескольких) и верни "
+                'строгий JSON: {"tasks":[{"title":str,"text":str,"deadline":ISO8601|null,'
+                '"confidence":float}, ...], "rationale":str}.\n'
+                "Правила:\n"
+                "- Каждая задача — отдельный пункт. Если действий несколько ('A и B'), "
+                "это две задачи.\n"
+                "- Если нет ни одной задачи (пустой треп) — верни tasks: [].\n"
+                "- title — короткий повелительный текст до 120 символов.\n"
+                "- deadline парси в Europe/Moscow; если не указан — null.\n"
+                "- confidence ∈ [0,1].\n"
+                f"Текущая дата (MSK): {now_iso}."
+            )
+            user_prompt = f"Контекст:\n{context_text}\n\nСообщение:\n{text}"
+            resp = await self._client.chat.completions.create(
+                model=self._model,
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_prompt},
+                ],
+                response_format={"type": "json_object"},
+                temperature=0,
+            )
+            raw = resp.choices[0].message.content or "{}"
+            data = json.loads(raw)
+            return self._normalize_multi_output(data)
+        except Exception as exc:  # pragma: no cover
+            log.warning("LLM extract_multiple failed: %s — heuristic fallback", exc)
+            return self._heuristic_extract_multiple(text)
+
+    def _normalize_multi_output(self, data: dict) -> list[dict]:
+        raw_tasks = data.get("tasks") or []
+        if not isinstance(raw_tasks, list):
+            return []
+        result: list[dict] = []
+        for t in raw_tasks[: self.MAX_MULTI_TASKS]:
+            if not isinstance(t, dict):
+                continue
+            title = (t.get("title") or "").strip()
+            if not title:
+                continue
+            txt = (t.get("text") or title).strip()
+            deadline_raw = t.get("deadline")
+            deadline_dt: datetime | None = None
+            if deadline_raw:
+                try:
+                    deadline_dt = dateparser.isoparse(deadline_raw)
+                    deadline_dt = (
+                        MSK.localize(deadline_dt)
+                        if deadline_dt.tzinfo is None
+                        else deadline_dt.astimezone(MSK)
+                    )
+                except (ValueError, TypeError):
+                    deadline_dt = None
+            result.append(
+                {
+                    "title": title[:120],
+                    "text": txt[:5000],
+                    "deadline": deadline_dt,
+                    "confidence": float(t.get("confidence") or 0.0),
+                }
+            )
+        return result
+
+    def _heuristic_extract_multiple(self, text: str) -> list[dict]:
+        """Эвристика без LLM — режем по союзам 'и', 'а ещё', ';', '\\n'."""
+        single = self._heuristic_classify(text)
+        if not single.get("is_task"):
+            return []
+        cleaned = (text or "").strip()
+        # пробуем разбить по очевидным разделителям
+        parts: list[str] = []
+        for chunk in re.split(r"[\n;]| и | а ещё | потом ", cleaned, flags=re.IGNORECASE):
+            chunk = chunk.strip(" .,!?")
+            if len(chunk) >= 3:
+                parts.append(chunk)
+        if len(parts) <= 1:
+            return [
+                {
+                    "title": self.build_title(cleaned),
+                    "text": cleaned,
+                    "deadline": None,
+                    "confidence": 0.5,
+                }
+            ]
+        return [
+            {
+                "title": self.build_title(p),
+                "text": p,
+                "deadline": None,
+                "confidence": 0.4,
+            }
+            for p in parts[: self.MAX_MULTI_TASKS]
+        ]

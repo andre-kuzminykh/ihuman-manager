@@ -27,54 +27,64 @@ def _fmt_deadline(value: str | None) -> str:
 
 
 def build_task_card_kb(task: dict) -> InlineKeyboardMarkup:
+    """Раскладка карточки:
+       строка 1: ▶️ Начать (большая) — если задача не активна
+       строка 2: ⭐ Избранное (большая) — всегда
+       строка 3: 🚫 Отменить · ✅ Готово · ⏸ Пауза (Пауза только когда in_progress)
+    Для done/cancelled показываем только ↩️ Восстановить.
+    """
     rows: list[list[InlineKeyboardButton]] = []
     status = task.get("status")
     tid = task["id"]
-    if status in {"backlog", "todo"}:
+
+    if status in {"done", "cancelled"}:
         rows.append([
             InlineKeyboardButton(
-                text="▶️ Начать",
+                text="↩️ Вернуть в работу",
                 callback_data=TaskActionCallback(task_id=tid, action="start").pack(),
             )
         ])
-    if status in {"todo", "in_progress"}:
+        return InlineKeyboardMarkup(inline_keyboard=rows)
+
+    # большая «Начать / Продолжить»
+    if status in {"backlog", "todo", "paused", "blocked"}:
+        start_label = "▶️ Продолжить" if status in {"paused", "blocked"} else "▶️ Начать"
         rows.append([
             InlineKeyboardButton(
-                text="⏸ Пауза",
-                callback_data=TaskActionCallback(task_id=tid, action="pause").pack(),
-            ),
-            InlineKeyboardButton(
-                text="🛑 Заблок.",
-                callback_data=TaskActionCallback(task_id=tid, action="block").pack(),
-            ),
-            InlineKeyboardButton(
-                text="✅ Готово",
-                callback_data=TaskActionCallback(task_id=tid, action="done").pack(),
-            ),
-        ])
-    if status in {"paused", "blocked"}:
-        rows.append([
-            InlineKeyboardButton(
-                text="▶️ Продолжить",
+                text=start_label,
                 callback_data=TaskActionCallback(task_id=tid, action="start").pack(),
-            ),
-            InlineKeyboardButton(
-                text="✅ Готово",
-                callback_data=TaskActionCallback(task_id=tid, action="done").pack(),
-            ),
+            )
         ])
-    fav_text = "⭐ Убрать" if task.get("is_favorite") else "⭐ В избранное"
+
+    # большая «Избранное»
+    fav_text = "⭐ Убрать из избранного" if task.get("is_favorite") else "⭐ В избранное"
     fav_action = "unfavorite" if task.get("is_favorite") else "favorite"
     rows.append([
         InlineKeyboardButton(
             text=fav_text,
             callback_data=TaskActionCallback(task_id=tid, action=fav_action).pack(),
-        ),
+        )
+    ])
+
+    # нижний ряд
+    bottom = [
         InlineKeyboardButton(
             text="🚫 Отменить",
             callback_data=TaskActionCallback(task_id=tid, action="cancel").pack(),
         ),
-    ])
+        InlineKeyboardButton(
+            text="✅ Готово",
+            callback_data=TaskActionCallback(task_id=tid, action="done").pack(),
+        ),
+    ]
+    if status == "in_progress":
+        bottom.append(
+            InlineKeyboardButton(
+                text="⏸ Пауза",
+                callback_data=TaskActionCallback(task_id=tid, action="pause").pack(),
+            )
+        )
+    rows.append(bottom)
     return InlineKeyboardMarkup(inline_keyboard=rows)
 
 
