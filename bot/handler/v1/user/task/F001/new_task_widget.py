@@ -14,7 +14,7 @@ from __future__ import annotations
 
 from aiogram import F, Router
 from aiogram.enums import ChatType
-from aiogram.filters import Command
+from aiogram.filters import Command, StateFilter
 from aiogram.fsm.context import FSMContext
 from aiogram.types import Message
 
@@ -41,7 +41,14 @@ async def on_new_command(message: Message, state: FSMContext) -> None:
     await _handle(message, state)
 
 
-@router.message(F.chat.type == ChatType.PRIVATE, F.text & ~F.text.startswith("/"))
+# StateFilter(None) — ловим только когда нет активной FSM, иначе текст
+# должен идти в виджет, поставивший state (например, pending_action_widget
+# для LLM-edit или directions_widget для создания направления).
+@router.message(
+    StateFilter(None),
+    F.chat.type == ChatType.PRIVATE,
+    F.text & ~F.text.startswith("/"),
+)
 async def on_private_text(message: Message, state: FSMContext) -> None:
     await _handle(message, state)
 
