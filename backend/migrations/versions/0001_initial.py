@@ -34,7 +34,7 @@ def upgrade() -> None:
         sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False),
         sa.UniqueConstraint("user_id", "name", name="uq_directions_user_name"),
     )
-    op.create_index("ix_directions_user_id", "directions", ["user_id"])
+    # ix_directions_user_id создаётся автоматически из index=True на колонке.
 
     op.create_table(
         "tasks",
@@ -167,5 +167,4 @@ def downgrade() -> None:
     op.drop_index("ix_tasks_deadline", table_name="tasks")
     op.drop_index("ix_tasks_status", table_name="tasks")
     op.drop_table("tasks")
-    op.drop_index("ix_directions_user_id", table_name="directions")
     op.drop_table("directions")
