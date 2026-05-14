@@ -1239,6 +1239,109 @@
           "examples": []
         }
       ]
+    },
+    {
+      "feature_id": "F020",
+      "general_info": {
+        "name": "People — контакты владельца",
+        "overview": "Отдельная таблица контактов. На каждое входящее сообщение в любом канале (DM-бот, group, business) делается idempotent upsert: telegram_user_id, username, first/last name, is_bot, language_code, is_premium. Плюс агрегаты — last_seen_at и message_count. Команда /people в DM показывает список с метаданными."
+      },
+      "goal_and_context": {
+        "business_goal": "Связать задачи с людьми: знать кто что прислал.",
+        "user_problem": "Без отдельной таблицы непонятно с кем уже общался и как часто."
+      },
+      "actors_and_roles": {
+        "primary_user": "Владелец задач",
+        "secondary_user": null,
+        "system_service": "PersonService"
+      },
+      "business_rules": [
+        {"rule_id": "BR054", "description": "Upsert по telegram_user_id (UNIQUE)."},
+        {"rule_id": "BR055", "description": "При каждом сообщении message_count +=1 и last_seen_at = now()."},
+        {"rule_id": "BR056", "description": "Username и имена обновляются, если изменились."}
+      ],
+      "acceptance_criteria": [
+        {
+          "scenario_id": "SC040",
+          "user_story": "Как пользователь, я хочу что при каждом входящем сообщении контакт пишущего сохранялся.",
+          "bdd": {
+            "given": "В people нет записи для tg_user_id=42",
+            "and_preconditions": [],
+            "when": "POST /api/v1/people/touch с telegram_user_id=42, username='alice'",
+            "then": "Создаётся запись с message_count=1 и last_seen_at",
+            "and_postconditions": []
+          }
+        },
+        {
+          "scenario_id": "SC041",
+          "user_story": "Я вызываю /people и вижу список контактов.",
+          "bdd": {
+            "given": "В people 3 записи",
+            "and_preconditions": [],
+            "when": "GET /api/v1/people/",
+            "then": "Получаю 3 строки, отсортированные по last_seen_at DESC",
+            "and_postconditions": []
+          }
+        }
+      ],
+      "non_functional_requirements": [],
+      "test_cases": [
+        {
+          "test_id": "T040",
+          "scenario_id": "SC040",
+          "setup": "Пустая таблица people",
+          "action": "POST /api/v1/people/touch + повторный с тем же tg_user_id",
+          "assertion": "1 запись, message_count=2, last_seen_at обновлён",
+          "examples": []
+        }
+      ]
+    },
+    {
+      "feature_id": "F021",
+      "general_info": {
+        "name": "Голос везде — ingest через Whisper в чатах, group и business",
+        "overview": "Голосовые и аудио-сообщения в любом канале (DM с ботом, group, business DM) идут через тот же pipeline что и текст: бот скачивает файл, отправляет в Whisper, подставляет распознанный текст в MessageIngestService.ingest. Дальше — обычный двухступенчатый extractor (F019), мульти-декомпозиция (F015), дедуп (F010)."
+      },
+      "goal_and_context": {
+        "business_goal": "Голос — самый быстрый ввод. Не теряем задачи произнесённые голосом.",
+        "user_problem": "Без этого голос работал только в DM с ботом, в чатах и business — нет."
+      },
+      "actors_and_roles": {
+        "primary_user": "Владелец задач",
+        "secondary_user": "Контрагенты, шлющие voice",
+        "system_service": "VoiceService (Whisper) + MessageIngestService"
+      },
+      "business_rules": [
+        {"rule_id": "BR057", "description": "voice/audio в group/channel/business message → скачать в память → POST /voice/transcribe → подставить text в ingest."},
+        {"rule_id": "BR058", "description": "Если транскрипция пустая — сообщение игнорируется."},
+        {"rule_id": "BR059", "description": "Whisper-ошибка не валит обработку других сообщений (try/except + log.exception)."}
+      ],
+      "acceptance_criteria": [
+        {
+          "scenario_id": "SC042",
+          "user_story": "Анастасия шлёт мне голосовое в DM (business) — извлекаются задачи.",
+          "bdd": {
+            "given": "Business подключён, Анастасия в DM шлёт voice 'надо подготовить отчёт до пятницы'",
+            "and_preconditions": ["VoiceAPI.transcribe возвращает 'надо подготовить отчёт до пятницы'"],
+            "when": "Бот получает business_message с voice",
+            "then": "Расшифровывается, ingest создаёт PendingTask, владельцу в DM прилетает карточка",
+            "and_postconditions": []
+          }
+        }
+      ],
+      "non_functional_requirements": [
+        {"nfr_id": "NFR011", "type": "performance", "description": "Голос ≤30 сек обрабатывается в ≤8 сек end-to-end."}
+      ],
+      "test_cases": [
+        {
+          "test_id": "T042",
+          "scenario_id": "SC042",
+          "setup": "monkeypatch VoiceAPI.transcribe + ExtractorService → 1 задача",
+          "action": "Эмулируем business_message с voice (mock aiogram message)",
+          "assertion": "PendingCardAnswer.send вызван с владельцем",
+          "examples": []
+        }
+      ]
     }
   ]
 }

@@ -24,6 +24,7 @@ from core.loader import get_bot
 from node.chat.code.chat_message_code import _is_bot_mentioned
 from node.pending.answer.pending_card_answer import PendingCardAnswer
 from node.task.answer.task_created_answer import build_task_card_kb, render_task_card
+from node.voice.voice_helper import transcribe_message_voice
 from service.api.base_api import APIError
 from service.api.business_api import BusinessAPI
 from service.api.chats_api import ChatsAPI
@@ -36,7 +37,7 @@ router = Router(name="business.F018.message")
 log = logging.getLogger("business_message")
 
 
-@router.business_message(F.text | F.caption)
+@router.business_message(F.text | F.caption | F.voice | F.audio)
 async def on_business_message(message: Message) -> None:
     if message.from_user is not None and message.from_user.is_bot:
         return
@@ -65,6 +66,10 @@ async def on_business_message(message: Message) -> None:
         return
 
     text = (message.text or message.caption or "").strip()
+    if not text and (message.voice or message.audio):
+        text = (await transcribe_message_voice(message)) or ""
+        if text:
+            log.info("business voice transcribed: %r", text[:200])
     if not text:
         return
 

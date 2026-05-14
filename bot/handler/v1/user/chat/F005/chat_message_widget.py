@@ -15,6 +15,7 @@ from aiogram.types import Message
 from node.chat.code.chat_message_code import ChatMessageCode
 from node.pending.answer.pending_card_answer import PendingCardAnswer
 from node.task.answer.task_created_answer import build_task_card_kb, render_task_card
+from node.voice.voice_helper import transcribe_message_voice
 from core.loader import get_bot
 from service.api.base_api import APIError
 from service.api.people_api import PeopleAPI
@@ -23,14 +24,27 @@ from service.api.people_api import PeopleAPI
 router = Router(name="chat.F005.message")
 
 
-@router.channel_post(F.text | F.caption)
+@router.channel_post(F.text | F.caption | F.voice | F.audio)
 @router.message(
     F.chat.type.in_({ChatType.GROUP, ChatType.SUPERGROUP}),
-    F.text | F.caption,
+    F.text | F.caption | F.voice | F.audio,
 )
 async def on_chat_message(message: Message) -> None:
     if message.from_user is not None and message.from_user.is_bot:
         return
+
+    # Если пришло голосовое/аудио — Whisper, и подменяем text в message
+    # объекте через monkey-patch, чтобы ingest нашёл текст.
+    if (message.voice or message.audio) and not (message.text or message.caption):
+        transcribed = await transcribe_message_voice(message)
+        if not transcribed:
+            return
+        # aiogram Message — pydantic, поле text иммутабельно через assignment в
+        # старых версиях; используем object.__setattr__ как обход.
+        try:
+            object.__setattr__(message, "text", transcribed)
+        except Exception:
+            return
     # touch People — фиксируем кто пишет.
     if message.from_user is not None:
         try:
