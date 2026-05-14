@@ -67,8 +67,11 @@ class ChatMessageCode:
             result = await self._chats_api.ingest_message(
                 chat_id=message.chat.id,
                 message_id=message.message_id,
+                chat_username=getattr(message.chat, "username", None),
                 sender_user_id=message.from_user.id if message.from_user else None,
                 sender_username=message.from_user.username if message.from_user else None,
+                sender_first_name=message.from_user.first_name if message.from_user else None,
+                sender_last_name=message.from_user.last_name if message.from_user else None,
                 text=text,
                 sent_at=sent_at,
                 is_bot_mentioned=mentioned,

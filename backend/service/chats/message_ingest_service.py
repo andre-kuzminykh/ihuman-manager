@@ -36,8 +36,25 @@ from schema.chats.message_ingest_schema import (
 from service.chats.chat_subscription_service import ChatSubscriptionService
 from service.chats.pending_task_service import PendingTaskService
 from service.extractor.extractor_service import ExtractorService
+from service.people.person_service import PersonService
 from service.tasks.task_service import TaskService
 from service.utils.time_utils import today_msk_default_deadline
+
+
+def _resolve_display_name(
+    *,
+    first_name: str | None = None,
+    last_name: str | None = None,
+    username: str | None = None,
+) -> str | None:
+    full = " ".join(filter(None, [first_name, last_name])).strip()
+    if full and username:
+        return f"{full} (@{username})"
+    if full:
+        return full
+    if username:
+        return f"@{username}"
+    return None
 
 
 class MessageIngestService:
@@ -49,9 +66,11 @@ class MessageIngestService:
         pending_service: PendingTaskService | None = None,
         extractor: ExtractorService | None = None,
         task_service: TaskService | None = None,
+        person_service: PersonService | None = None,
     ) -> None:
         self._sub_service = sub_service or ChatSubscriptionService()
         self._msg_repo = msg_repo or MessageContextRepository()
+        self._person_service = person_service or PersonService()
         self._processed_repo = processed_repo or ProcessedMessageRepository()
         self._pending_service = pending_service or PendingTaskService()
         self._task_service = task_service or TaskService()
@@ -110,12 +129,34 @@ class MessageIngestService:
             [f"{m['sender_username'] or 'user'}: {m['text'][:80]}" for m in context_payload[-5:]],
         )
 
-        # 5. Извлекаем массив задач (всегда). Если 0 — игнор. Если >=1 —
+        # 5. Подтягиваем имя отправителя — сначала из payload (если бот
+        #    передал), потом fallback из People (если уже видели).
+        sender_first = payload.sender_first_name
+        sender_last = payload.sender_last_name
+        if not (sender_first or sender_last) and payload.sender_user_id:
+            from repository.people.person_repository import PersonRepository
+
+            person = await PersonRepository().get_by_telegram_id(
+                session, payload.sender_user_id
+            )
+            if person is not None:
+                sender_first = sender_first or person.first_name
+                sender_last = sender_last or person.last_name
+        sender_display = _resolve_display_name(
+            first_name=sender_first,
+            last_name=sender_last,
+            username=payload.sender_username,
+        )
+        log.info("INGEST sender_display=%r", sender_display)
+
+        # 6. Извлекаем массив задач (всегда). Если 0 — игнор. Если >=1 —
         #    либо авто-апрув (бот тегнут), либо N PendingTask на согласование.
         from model.enums import TaskSource as _TaskSource
 
         extracted = await self._extractor.extract_multiple(
-            payload.text, context_messages=context_payload
+            payload.text,
+            context_messages=context_payload,
+            sender_display=sender_display,
         )
         if not extracted:
             return MessageIngestResultSchema(
@@ -130,6 +171,7 @@ class MessageIngestService:
                 chat_id=payload.chat_id,
                 source_message_id=payload.message_id,
                 source_sender_username=payload.sender_username,
+                source_chat_username=payload.chat_username,
                 source_kind=_TaskSource.CHAT,
             )
             task_ids = [t.id for t, _ in results]
@@ -164,6 +206,7 @@ class MessageIngestService:
                 owner_user_id=sub.owner_user_id,
                 source_text=payload.text,
                 source_sender=payload.sender_username,
+                source_chat_username=payload.chat_username,
                 draft=draft,
                 is_auto_approved=False,
             )

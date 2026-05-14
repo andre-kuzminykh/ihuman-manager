@@ -95,6 +95,10 @@ _PRIORITY_EMOJI = {"low": "🟢", "medium": "🟡", "high": "🔴"}
 
 
 def _source_url(task: dict) -> str | None:
+    """Ссылка строится только из chat_username — username чата-контакта,
+    куда задача была написана. НИКОГДА не используем sender_username, иначе
+    при self-write ссылка ведёт в твой собственный чат ('Saved Messages').
+    """
     chat_id = task.get("chat_id")
     msg_id = task.get("source_message_id")
     if not chat_id:
@@ -103,11 +107,10 @@ def _source_url(task: dict) -> str | None:
     # Supergroups / channels — публичная ссылка на конкретное сообщение.
     if cid < 0 and str(cid).startswith("-100") and msg_id:
         return f"https://t.me/c/{str(cid)[4:]}/{msg_id}"
-    # Private DM / private group — нет URL на конкретное сообщение.
-    # Фоллбек: t.me/<username> отправителя.
-    sender = task.get("source_sender") or task.get("source_sender_username")
-    if sender:
-        return f"https://t.me/{sender}"
+    # Private DM с другим контактом — открыть чат с ним.
+    chat_username = task.get("source_chat_username")
+    if chat_username:
+        return f"https://t.me/{chat_username}"
     return None
 
 

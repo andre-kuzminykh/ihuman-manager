@@ -45,9 +45,10 @@ def _source_url(pending: dict) -> str | None:
     cid = int(chat_id)
     if cid < 0 and str(cid).startswith("-100") and msg_id:
         return f"https://t.me/c/{str(cid)[4:]}/{msg_id}"
-    sender = pending.get("source_sender")
-    if sender:
-        return f"https://t.me/{sender}"
+    # DM с контактом — открыть чат с ним по username чата (не отправителя!).
+    chat_username = pending.get("source_chat_username")
+    if chat_username:
+        return f"https://t.me/{chat_username}"
     return None
 
 

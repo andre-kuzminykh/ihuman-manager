@@ -15,8 +15,11 @@ from pydantic import BaseModel
 class MessageIngestSchema(BaseModel):
     chat_id: int
     message_id: int
+    chat_username: str | None = None  # username чата-контакта (для гиперссылки)
     sender_user_id: int | None = None
     sender_username: str | None = None
+    sender_first_name: str | None = None
+    sender_last_name: str | None = None
     text: str
     sent_at: datetime
     is_bot_mentioned: bool = False
