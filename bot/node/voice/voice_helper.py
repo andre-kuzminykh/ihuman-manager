@@ -20,22 +20,33 @@ log = logging.getLogger("voice_helper")
 
 
 async def transcribe_message_voice(message: Message) -> str | None:
-    """Если в сообщении есть voice/audio — скачать и расшифровать через Whisper.
-    Возвращает строку или None. Лимит — 60 сек длительности (берётся как есть,
-    лимит — у самого Whisper API).
+    """Если в сообщении есть voice/audio/video_note — скачать и расшифровать.
+    Видео-кружочки (video_note) — mp4 контейнер, OpenAI принимает.
+    Возвращает строку или None.
     """
-    voice = message.voice or message.audio
-    if voice is None:
+    if message.voice:
+        media = message.voice
+        file_name = "voice.ogg"
+    elif message.audio:
+        media = message.audio
+        file_name = "audio.ogg"
+    elif message.video_note:
+        media = message.video_note
+        file_name = "video_note.mp4"
+    elif message.video:
+        media = message.video
+        file_name = "video.mp4"
+    else:
         return None
     try:
         bot = get_bot()
         buf = BytesIO()
-        await bot.download(voice, destination=buf)
+        await bot.download(media, destination=buf)
         text = await VoiceAPI().transcribe(
             audio_bytes=buf.getvalue(),
-            file_name="voice.ogg" if message.voice else "audio.ogg",
+            file_name=file_name,
         )
     except Exception:
-        log.exception("voice transcribe failed")
+        log.exception("voice/video transcribe failed")
         return None
     return (text or "").strip() or None

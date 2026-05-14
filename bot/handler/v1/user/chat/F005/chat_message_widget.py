@@ -24,10 +24,10 @@ from service.api.people_api import PeopleAPI
 router = Router(name="chat.F005.message")
 
 
-@router.channel_post(F.text | F.caption | F.voice | F.audio)
+@router.channel_post(F.text | F.caption | F.voice | F.audio | F.video_note | F.video)
 @router.message(
     F.chat.type.in_({ChatType.GROUP, ChatType.SUPERGROUP}),
-    F.text | F.caption | F.voice | F.audio,
+    F.text | F.caption | F.voice | F.audio | F.video_note | F.video,
 )
 async def on_chat_message(message: Message) -> None:
     if message.from_user is not None and message.from_user.is_bot:
@@ -35,7 +35,10 @@ async def on_chat_message(message: Message) -> None:
 
     # Если пришло голосовое/аудио — Whisper, и подменяем text в message
     # объекте через monkey-patch, чтобы ingest нашёл текст.
-    if (message.voice or message.audio) and not (message.text or message.caption):
+    if (
+        (message.voice or message.audio or message.video_note or message.video)
+        and not (message.text or message.caption)
+    ):
         transcribed = await transcribe_message_voice(message)
         if not transcribed:
             return

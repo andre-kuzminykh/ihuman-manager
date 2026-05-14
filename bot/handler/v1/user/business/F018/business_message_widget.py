@@ -37,7 +37,7 @@ router = Router(name="business.F018.message")
 log = logging.getLogger("business_message")
 
 
-@router.business_message(F.text | F.caption | F.voice | F.audio)
+@router.business_message(F.text | F.caption | F.voice | F.audio | F.video_note | F.video)
 async def on_business_message(message: Message) -> None:
     if message.from_user is not None and message.from_user.is_bot:
         return
@@ -66,7 +66,7 @@ async def on_business_message(message: Message) -> None:
         return
 
     text = (message.text or message.caption or "").strip()
-    if not text and (message.voice or message.audio):
+    if not text and (message.voice or message.audio or message.video_note or message.video):
         text = (await transcribe_message_voice(message)) or ""
         if text:
             log.info("business voice transcribed: %r", text[:200])

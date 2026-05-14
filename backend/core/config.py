@@ -28,7 +28,7 @@ class Settings(BaseSettings):
     LLM_MODEL: str = "gpt-4o-mini"
     CLASSIFIER_MODEL: str = "gpt-4o-mini"
     DECOMPOSER_MODEL: str = "gpt-5.4"
-    WHISPER_MODEL: str = "whisper-1"
+    WHISPER_MODEL: str = "gpt-4o-transcribe"
 
     # Scheduler
     SCHEDULER_TICK_SECONDS: int = 300

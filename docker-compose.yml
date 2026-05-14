@@ -34,7 +34,7 @@ services:
       LLM_MODEL: ${LLM_MODEL:-gpt-4o-mini}
       CLASSIFIER_MODEL: ${CLASSIFIER_MODEL:-gpt-4o-mini}
       DECOMPOSER_MODEL: ${DECOMPOSER_MODEL:-gpt-5.4}
-      WHISPER_MODEL: ${WHISPER_MODEL:-whisper-1}
+      WHISPER_MODEL: ${WHISPER_MODEL:-gpt-4o-transcribe}
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
     ports:
       - "${BACKEND_PORT:-8015}:8015"

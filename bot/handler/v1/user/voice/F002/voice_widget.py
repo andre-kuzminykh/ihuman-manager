@@ -33,6 +33,8 @@ _ANSWER_REGISTRY = {
 
 @router.message(F.chat.type == ChatType.PRIVATE, F.voice)
 @router.message(F.chat.type == ChatType.PRIVATE, F.audio)
+@router.message(F.chat.type == ChatType.PRIVATE, F.video_note)
+@router.message(F.chat.type == ChatType.PRIVATE, F.video)
 async def on_voice(message: Message, state: FSMContext) -> None:
     trigger = VoiceTrigger()
     trigger_data = await trigger.run(message, state)
