@@ -36,6 +36,7 @@ class TaskModel(Base, BaseModel):
     user_id: Mapped[int] = mapped_column(BigInteger, nullable=False, index=True)
     chat_id: Mapped[int | None] = mapped_column(BigInteger, nullable=True, index=True)
     source_message_id: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+    source_sender_username: Mapped[str | None] = mapped_column(String(64), nullable=True)
 
     title: Mapped[str] = mapped_column(String(200), nullable=False)
     text: Mapped[str] = mapped_column(Text, nullable=False)

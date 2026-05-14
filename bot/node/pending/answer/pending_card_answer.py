@@ -40,11 +40,14 @@ def _fmt(value: str | None) -> str:
 def _source_url(pending: dict) -> str | None:
     chat_id = pending.get("chat_id")
     msg_id = pending.get("message_id")
-    if not chat_id or not msg_id:
+    if not chat_id:
         return None
     cid = int(chat_id)
-    if cid < 0 and str(cid).startswith("-100"):
+    if cid < 0 and str(cid).startswith("-100") and msg_id:
         return f"https://t.me/c/{str(cid)[4:]}/{msg_id}"
+    sender = pending.get("source_sender")
+    if sender:
+        return f"https://t.me/{sender}"
     return None
 
 

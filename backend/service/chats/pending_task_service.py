@@ -124,10 +124,13 @@ class PendingTaskService:
             chat_id=obj.chat_id,
             force=force,
             source_message_id=obj.message_id,
+            source_sender_username=obj.source_sender,
             source_kind=TaskSource.CHAT,
             title=title,
+            description=draft.get("description"),
             deadline=deadline,
             direction_id=direction_id,
+            priority=draft.get("priority"),
         )
         obj.approved = True
         obj.approved_at = now_msk()

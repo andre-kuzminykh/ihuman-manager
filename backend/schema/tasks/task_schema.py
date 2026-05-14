@@ -66,6 +66,7 @@ class TaskResponseSchema(BaseModel):
     user_id: int
     chat_id: int | None
     source_message_id: int | None = None
+    source_sender_username: str | None = None
     title: str
     text: str
     description: str | None = None

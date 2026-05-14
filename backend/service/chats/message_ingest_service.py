@@ -129,6 +129,7 @@ class MessageIngestService:
                 extracted=extracted,
                 chat_id=payload.chat_id,
                 source_message_id=payload.message_id,
+                source_sender_username=payload.sender_username,
                 source_kind=_TaskSource.CHAT,
             )
             task_ids = [t.id for t, _ in results]
