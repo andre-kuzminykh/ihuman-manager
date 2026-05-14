@@ -4,7 +4,22 @@ core.loader — FastAPI app + регистрация роутеров и обр�
 
 from __future__ import annotations
 
+import logging
+
 from fastapi import FastAPI
+
+from core.config import config
+
+
+# Конфигурируем root logger РАНЬШЕ всех импортов, чтобы log.info() работал
+# в alembic env.py и в каждом сервисе. uvicorn по умолчанию оставляет root
+# на WARNING — поэтому без этого вызова INFO-трейсы тонут.
+logging.basicConfig(
+    level=config.LOG_LEVEL,
+    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+    force=True,  # перебиваем настройку uvicorn если она уже что-то поставила
+)
+
 
 app = FastAPI(
     title="iHuman Manager Backend",
