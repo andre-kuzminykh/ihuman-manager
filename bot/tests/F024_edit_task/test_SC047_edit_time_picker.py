@@ -44,10 +44,16 @@ def test_time_kb_minute_grid_2x6_5min_steps() -> None:
     assert sorted(cleaned) == sorted(expected)
 
 
-def test_time_kb_footer_back_and_accept() -> None:
-    kb = build_time_kb(7, 9, 0)
+def test_time_kb_footer_back_and_accept_when_no_deadline() -> None:
+    kb = build_time_kb(7, 9, 0, has_deadline=False)
     last = [b.text for b in kb.inline_keyboard[-1]]
     assert last == ["← Назад", "✅ Применить"]
+
+
+def test_time_kb_footer_includes_clear_when_has_deadline() -> None:
+    kb = build_time_kb(7, 9, 0, has_deadline=True)
+    last = [b.text for b in kb.inline_keyboard[-1]]
+    assert last == ["← Назад", "🗑 Снять", "✅ Применить"]
 
 
 def test_shift_hour_wraps_24h() -> None:

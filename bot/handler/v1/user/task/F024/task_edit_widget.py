@@ -358,6 +358,24 @@ async def on_date_action(
         await state.set_state(TaskEditStates.main)
         await cb.answer()
         return
+    elif callback_data.action == "clear":
+        # 🗑 Снять дедлайн прямо из календаря.
+        api = TasksAPI()
+        try:
+            await api.llm_edit(callback_data.task_id, "снять дедлайн, deadline=null")
+        except APIError as exc:
+            await cb.answer(exc.message, show_alert=True)
+            return
+        task = await _refresh_task(state, callback_data.task_id)
+        text, kb = screen_main(task)
+        if cb.message is not None:
+            try:
+                await cb.message.edit_text(text, reply_markup=kb, disable_web_page_preview=True)
+            except Exception:
+                pass
+        await state.set_state(TaskEditStates.main)
+        await cb.answer("Дедлайн снят")
+        return
     elif callback_data.action == "accept":
         # Применяем дату; время — текущее из task (или 09:00).
         _, _, _, hh, mm = _split_deadline(task)
@@ -435,6 +453,23 @@ async def on_time_action(
                 pass
         await state.set_state(TaskEditStates.main)
         await cb.answer()
+        return
+    elif callback_data.action == "clear":
+        api = TasksAPI()
+        try:
+            await api.llm_edit(callback_data.task_id, "снять дедлайн, deadline=null")
+        except APIError as exc:
+            await cb.answer(exc.message, show_alert=True)
+            return
+        task = await _refresh_task(state, callback_data.task_id)
+        text, kb = screen_main(task)
+        if cb.message is not None:
+            try:
+                await cb.message.edit_text(text, reply_markup=kb, disable_web_page_preview=True)
+            except Exception:
+                pass
+        await state.set_state(TaskEditStates.main)
+        await cb.answer("Дедлайн снят")
         return
     elif callback_data.action == "accept":
         y, m, d, _, _ = _split_deadline(task)

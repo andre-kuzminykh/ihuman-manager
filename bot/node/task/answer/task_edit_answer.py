@@ -234,14 +234,19 @@ def render_date(year: int, month: int, day: int) -> str:
     )
 
 
-def build_date_kb(task_id: int, year: int, month: int, day: int) -> InlineKeyboardMarkup:
+def build_date_kb(
+    task_id: int, year: int, month: int, day: int, *, has_deadline: bool = False
+) -> InlineKeyboardMarkup:
     """Календарь.
 
     Раскладка:
       Row 1: ← <year> →
       Row 2: ← <месяц> →
-      Rows 3..N: дни месяца по 11 в ряд, выбранный — с точкой ●.
-      Row N+1: Назад · Применить
+      Rows 3..N: дни месяца по 7 в ряд (Telegram inline-row cap = 8,
+                 даже для 31-дневных месяцев укладываемся в 5 рядов).
+                 Выбранный день — с точкой ●.
+      Row N+1: ← Назад · [🗑 Снять] · ✅ Применить
+                «Снять дедлайн» появляется только если у задачи он есть.
     """
     def _cb(action: str, **kw: int) -> str:
         return TaskEditDateCallback(
@@ -262,7 +267,7 @@ def build_date_kb(task_id: int, year: int, month: int, day: int) -> InlineKeyboa
     ]
 
     last_day = calendar.monthrange(year, month)[1]
-    cols = 11
+    cols = 7
     days = list(range(1, last_day + 1))
     for chunk_start in range(0, len(days), cols):
         chunk = days[chunk_start : chunk_start + cols]
@@ -276,20 +281,32 @@ def build_date_kb(task_id: int, year: int, month: int, day: int) -> InlineKeyboa
             for d in chunk
         ])
 
-    rows.append([
+    bottom_row: list[InlineKeyboardButton] = [
         InlineKeyboardButton(
             text="← Назад",
             callback_data=TaskEditDateCallback(
                 task_id=task_id, action="back", year=year, month=month, day=day
             ).pack(),
-        ),
+        )
+    ]
+    if has_deadline:
+        bottom_row.append(
+            InlineKeyboardButton(
+                text="🗑 Снять",
+                callback_data=TaskEditDateCallback(
+                    task_id=task_id, action="clear", year=year, month=month, day=day
+                ).pack(),
+            )
+        )
+    bottom_row.append(
         InlineKeyboardButton(
             text="✅ Применить",
             callback_data=TaskEditDateCallback(
                 task_id=task_id, action="accept", year=year, month=month, day=day
             ).pack(),
-        ),
-    ])
+        )
+    )
+    rows.append(bottom_row)
     return InlineKeyboardMarkup(inline_keyboard=rows)
 
 
@@ -328,11 +345,14 @@ def render_time(hour: int, minute: int) -> str:
     )
 
 
-def build_time_kb(task_id: int, hour: int, minute: int) -> InlineKeyboardMarkup:
+def build_time_kb(
+    task_id: int, hour: int, minute: int, *, has_deadline: bool = False
+) -> InlineKeyboardMarkup:
     """Time-picker:
       Row 1: ← HH →
       Rows 2..7: минуты, 2 столбца × 6 строк = 12 кнопок (00,05,…,55).
-      Row 8: Назад · Применить
+      Row 8: ← Назад · [🗑 Снять] · ✅ Применить
+              «Снять дедлайн» появляется только если у задачи он есть.
     """
     def _cb(action: str, **kw: int) -> str:
         return TaskEditTimeCallback(
@@ -366,20 +386,32 @@ def build_time_kb(task_id: int, hour: int, minute: int) -> InlineKeyboardMarkup:
             ),
         ])
 
-    rows.append([
+    bottom_row: list[InlineKeyboardButton] = [
         InlineKeyboardButton(
             text="← Назад",
             callback_data=TaskEditTimeCallback(
                 task_id=task_id, action="back", hour=hour, minute=minute
             ).pack(),
-        ),
+        )
+    ]
+    if has_deadline:
+        bottom_row.append(
+            InlineKeyboardButton(
+                text="🗑 Снять",
+                callback_data=TaskEditTimeCallback(
+                    task_id=task_id, action="clear", hour=hour, minute=minute
+                ).pack(),
+            )
+        )
+    bottom_row.append(
         InlineKeyboardButton(
             text="✅ Применить",
             callback_data=TaskEditTimeCallback(
                 task_id=task_id, action="accept", hour=hour, minute=minute
             ).pack(),
-        ),
-    ])
+        )
+    )
+    rows.append(bottom_row)
     return InlineKeyboardMarkup(inline_keyboard=rows)
 
 
@@ -405,8 +437,12 @@ def screen_description(task: dict) -> tuple[str, InlineKeyboardMarkup]:
 
 
 def screen_date(task: dict, *, year: int, month: int, day: int) -> tuple[str, InlineKeyboardMarkup]:
-    return render_date(year, month, day), build_date_kb(task["id"], year, month, day)
+    return render_date(year, month, day), build_date_kb(
+        task["id"], year, month, day, has_deadline=bool(task.get("deadline"))
+    )
 
 
 def screen_time(task: dict, *, hour: int, minute: int) -> tuple[str, InlineKeyboardMarkup]:
-    return render_time(hour, minute), build_time_kb(task["id"], hour, minute)
+    return render_time(hour, minute), build_time_kb(
+        task["id"], hour, minute, has_deadline=bool(task.get("deadline"))
+    )

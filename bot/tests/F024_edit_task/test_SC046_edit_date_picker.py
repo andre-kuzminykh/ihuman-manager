@@ -2,8 +2,9 @@
 SC046 — календарь для редактирования дедлайна:
 - ряд года с ←/→
 - ряд месяца с ←/→
-- дни 11 в ряд × до 3 рядов
-- последний ряд: «← Назад» и «✅ Применить»
+- дни не более 7 в ряд (Telegram inline-row cap = 8; даже 31-дневные
+  месяцы укладываются в 5 рядов)
+- последний ряд: «← Назад» (и «🗑 Снять» если есть дедлайн) · «✅ Применить»
 - shift_date корректно меняет месяц/год и обрезает день.
 
 ## Трассируемость
@@ -32,13 +33,12 @@ def test_date_kb_year_row_then_month_row() -> None:
     assert row1 == ["←", "Май", "→"]
 
 
-def test_date_kb_day_rows_have_11_cols_max() -> None:
+def test_date_kb_day_rows_have_at_most_7_cols() -> None:
+    """Telegram-лимит на inline-ряд — 8 кнопок; используем 7 (week-like)."""
     kb = build_date_kb(7, 2026, 5, 14)
-    # Rows 2..N-1 — дни
     day_rows = kb.inline_keyboard[2:-1]
     for row in day_rows:
-        assert len(row) <= 11
-    # Селекция дня — с точкой ●.
+        assert len(row) <= 7, f"row has {len(row)} buttons (cap 7)"
     flat = [b.text for row in day_rows for b in row]
     highlighted = [x for x in flat if x.startswith("●")]
     assert highlighted == ["●14"]
@@ -48,10 +48,23 @@ def test_date_kb_day_rows_have_11_cols_max() -> None:
     assert expected_days.issubset(presented)
 
 
-def test_date_kb_last_row_is_back_and_accept() -> None:
-    kb = build_date_kb(7, 2026, 5, 14)
+def test_date_kb_31_day_month_fits_in_5_rows_max() -> None:
+    """Январь = 31 день, ceil(31/7) = 5 рядов."""
+    kb = build_date_kb(7, 2026, 1, 15)
+    day_rows = kb.inline_keyboard[2:-1]
+    assert len(day_rows) <= 5
+
+
+def test_date_kb_last_row_is_back_and_accept_when_no_deadline() -> None:
+    kb = build_date_kb(7, 2026, 5, 14, has_deadline=False)
     last = [b.text for b in kb.inline_keyboard[-1]]
     assert last == ["← Назад", "✅ Применить"]
+
+
+def test_date_kb_last_row_includes_clear_when_has_deadline() -> None:
+    kb = build_date_kb(7, 2026, 5, 14, has_deadline=True)
+    last = [b.text for b in kb.inline_keyboard[-1]]
+    assert last == ["← Назад", "🗑 Снять", "✅ Применить"]
 
 
 def test_shift_date_month_overflow_keeps_year() -> None:
