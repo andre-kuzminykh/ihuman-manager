@@ -77,7 +77,15 @@ def build_task_card_kb(task: dict) -> InlineKeyboardMarkup:
         )
     ])
 
-    # Row 3 — Отмена + Готово (без Пауза).
+    # Row 3 — Редактировать (большая).
+    rows.append([
+        InlineKeyboardButton(
+            text="✏️ Редактировать",
+            callback_data=TaskActionCallback(task_id=tid, action="edit").pack(),
+        )
+    ])
+
+    # Row 4 — Отмена + Готово.
     rows.append([
         InlineKeyboardButton(
             text="🚫 Отмена",

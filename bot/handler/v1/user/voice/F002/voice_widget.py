@@ -41,6 +41,10 @@ async def on_voice(message: Message, state: FSMContext) -> None:
     code = VoiceCode()
     code_result = await code.run(trigger_data, state)
     answer_name = code_result["answer_name"]
+    try:
+        await message.delete()
+    except Exception:
+        pass
     if answer_name == "silent":
         return
     answer = _ANSWER_REGISTRY.get(answer_name)

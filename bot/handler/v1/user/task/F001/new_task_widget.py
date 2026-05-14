@@ -52,6 +52,11 @@ async def _handle(message: Message, state: FSMContext) -> None:
     code = NewTaskCode()
     code_result = await code.run(trigger_data, state)
     answer_name = code_result["answer_name"]
+    # Удаляем исходное сообщение пользователя — в DM остаются только карточки задач.
+    try:
+        await message.delete()
+    except Exception:
+        pass
     if answer_name == "silent":
         return  # дубль — молча
     answer = _ANSWER_REGISTRY.get(answer_name)
