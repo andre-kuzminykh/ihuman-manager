@@ -51,5 +51,10 @@ async def _handle(message: Message, state: FSMContext) -> None:
     trigger_data = await trigger.run(message, state)
     code = NewTaskCode()
     code_result = await code.run(trigger_data, state)
-    answer = _ANSWER_REGISTRY[code_result["answer_name"]]
+    answer_name = code_result["answer_name"]
+    if answer_name == "silent":
+        return  # дубль — молча
+    answer = _ANSWER_REGISTRY.get(answer_name)
+    if answer is None:
+        return
     await answer.run(event=message, user_lang="ru", data=code_result["data"])

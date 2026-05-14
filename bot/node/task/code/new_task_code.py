@@ -36,11 +36,10 @@ class NewTaskCode:
         if not tasks:
             return {"answer_name": "task_empty_error", "data": {"message": "Не нашёл задач в сообщении"}}
 
-        if len(tasks) == 1:
-            t = tasks[0]
-            if t.get("is_duplicate"):
-                return {"answer_name": "duplicate_found", "data": {"task": t, "raw_text": text}}
-            return {"answer_name": "task_created", "data": {"task": t}}
-
-        # multi (F015)
-        return {"answer_name": "tasks_created_multi", "data": {"tasks": tasks}}
+        # Дубли молча отбрасываем — пользователю не показываем.
+        fresh = [t for t in tasks if not t.get("is_duplicate")]
+        if not fresh:
+            return {"answer_name": "silent", "data": {}}
+        if len(fresh) == 1:
+            return {"answer_name": "task_created", "data": {"task": fresh[0]}}
+        return {"answer_name": "tasks_created_multi", "data": {"tasks": fresh}}

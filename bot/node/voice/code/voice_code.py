@@ -46,15 +46,16 @@ class VoiceCode:
         tasks: list[dict] = result.get("tasks", []) if isinstance(result, dict) else []
         if not tasks:
             return {"answer_name": "voice_failed", "data": {"message": "Не нашёл задач в голосе"}}
-        if len(tasks) == 1:
-            t = tasks[0]
-            if t.get("is_duplicate"):
-                return {"answer_name": "duplicate_found", "data": {"task": t, "raw_text": text}}
+
+        fresh = [t for t in tasks if not t.get("is_duplicate")]
+        if not fresh:
+            return {"answer_name": "silent", "data": {}}
+        if len(fresh) == 1:
             return {
                 "answer_name": "task_created",
-                "data": {"task": t, "transcribed_text": text},
+                "data": {"task": fresh[0], "transcribed_text": text},
             }
         return {
             "answer_name": "tasks_created_multi",
-            "data": {"tasks": tasks, "transcribed_text": text},
+            "data": {"tasks": fresh, "transcribed_text": text},
         }
