@@ -14,8 +14,9 @@ from __future__ import annotations
 
 from aiogram import F, Router
 from aiogram.enums import ChatType
-from aiogram.filters import Command
+from aiogram.filters import Command, StateFilter
 from aiogram.fsm.context import FSMContext
+from aiogram.fsm.state import default_state
 from aiogram.types import Message
 
 from node.task.answer.duplicate_found_answer import DuplicateFoundAnswer
@@ -36,12 +37,16 @@ _ANSWER_REGISTRY = {
 }
 
 
-@router.message(Command("new"))
+@router.message(Command("new"), StateFilter(default_state))
 async def on_new_command(message: Message, state: FSMContext) -> None:
     await _handle(message, state)
 
 
-@router.message(F.chat.type == ChatType.PRIVATE, F.text & ~F.text.startswith("/"))
+@router.message(
+    StateFilter(default_state),
+    F.chat.type == ChatType.PRIVATE,
+    F.text & ~F.text.startswith("/"),
+)
 async def on_private_text(message: Message, state: FSMContext) -> None:
     await _handle(message, state)
 

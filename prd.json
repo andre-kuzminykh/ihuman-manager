@@ -18,10 +18,22 @@
         "system_service": "Backend Task Service + LLM Extractor"
       },
       "business_rules": [
-        {"rule_id": "BR001", "description": "Если дедлайн не указан в тексте — задача получает дедлайн сегодня 18:00 МСК."},
-        {"rule_id": "BR002", "description": "Если до дедлайна осталось ≤7 дней — статус todo, иначе backlog."},
-        {"rule_id": "BR003", "description": "Заголовок задачи — первые 120 символов исходного текста до конца первого предложения."},
-        {"rule_id": "BR004", "description": "Пустой текст отклоняется с сообщением об ошибке."}
+        {
+          "rule_id": "BR001",
+          "description": "Если дедлайн не указан в тексте — задача получает дедлайн сегодня 18:00 МСК."
+        },
+        {
+          "rule_id": "BR002",
+          "description": "Если до дедлайна осталось ≤7 дней — статус todo, иначе backlog."
+        },
+        {
+          "rule_id": "BR003",
+          "description": "Заголовок задачи — первые 120 символов исходного текста до конца первого предложения."
+        },
+        {
+          "rule_id": "BR004",
+          "description": "Пустой текст отклоняется с сообщением об ошибке."
+        }
       ],
       "acceptance_criteria": [
         {
@@ -29,10 +41,14 @@
           "user_story": "Как пользователь, я хочу отправить боту '/new Подготовить отчёт до пятницы' и получить созданную задачу с парсингом дедлайна.",
           "bdd": {
             "given": "Пользователь авторизован и подписан на бота",
-            "and_preconditions": ["Сегодня среда 12 мая 2026"],
+            "and_preconditions": [
+              "Сегодня среда 12 мая 2026"
+            ],
             "when": "Пользователь отправляет '/new Подготовить отчёт до пятницы'",
             "then": "Бот создаёт задачу с title='Подготовить отчёт до пятницы', deadline=2026-05-15 18:00 МСК, status='todo'",
-            "and_postconditions": ["Бот присылает карточку с подтверждением и кнопками 'Изменить', 'Удалить', '⭐'"]
+            "and_postconditions": [
+              "Бот присылает карточку с подтверждением и кнопками 'Изменить', 'Удалить', '⭐'"
+            ]
           }
         },
         {
@@ -40,7 +56,9 @@
           "user_story": "Как пользователь, я хочу отправить задачу без даты и получить дедлайн на сегодня 18:00.",
           "bdd": {
             "given": "Пользователь авторизован",
-            "and_preconditions": ["Текущее время 10:00 МСК"],
+            "and_preconditions": [
+              "Текущее время 10:00 МСК"
+            ],
             "when": "Пользователь отправляет '/new Позвонить Алине'",
             "then": "Создаётся задача с deadline=сегодня 18:00 МСК, status='todo'",
             "and_postconditions": []
@@ -59,7 +77,11 @@
         }
       ],
       "non_functional_requirements": [
-        {"nfr_id": "NFR001", "type": "performance", "description": "Время от отправки сообщения до карточки задачи ≤ 3 сек (без LLM-распознавания дедлайна) / ≤ 6 сек (с LLM)."}
+        {
+          "nfr_id": "NFR001",
+          "type": "performance",
+          "description": "Время от отправки сообщения до карточки задачи ≤ 3 сек (без LLM-распознавания дедлайна) / ≤ 6 сек (с LLM)."
+        }
       ],
       "test_cases": [
         {
@@ -69,7 +91,16 @@
           "action": "Сервис парсит дедлайн через ExtractorService.parse_deadline",
           "assertion": "Создана задача с deadline=2026-05-15T18:00:00+03:00, status='todo'",
           "examples": [
-            {"input": {"text": "Подготовить отчёт до пятницы", "now": "2026-05-12T10:00:00+03:00"}, "expected": {"deadline": "2026-05-15T18:00:00+03:00", "status": "todo"}}
+            {
+              "input": {
+                "text": "Подготовить отчёт до пятницы",
+                "now": "2026-05-12T10:00:00+03:00"
+              },
+              "expected": {
+                "deadline": "2026-05-15T18:00:00+03:00",
+                "status": "todo"
+              }
+            }
           ]
         },
         {
@@ -79,7 +110,16 @@
           "action": "Создание задачи через TaskService.create_from_text",
           "assertion": "deadline=сегодня 18:00 МСК, status='todo'",
           "examples": [
-            {"input": {"text": "Позвонить Алине", "now": "2026-05-12T10:00:00+03:00"}, "expected": {"deadline": "2026-05-12T18:00:00+03:00", "status": "todo"}}
+            {
+              "input": {
+                "text": "Позвонить Алине",
+                "now": "2026-05-12T10:00:00+03:00"
+              },
+              "expected": {
+                "deadline": "2026-05-12T18:00:00+03:00",
+                "status": "todo"
+              }
+            }
           ]
         },
         {
@@ -89,7 +129,14 @@
           "action": "Создание задачи",
           "assertion": "HTTP 422, задача не создана",
           "examples": [
-            {"input": {"text": "   "}, "expected": {"status_code": 422}}
+            {
+              "input": {
+                "text": "   "
+              },
+              "expected": {
+                "status_code": 422
+              }
+            }
           ]
         }
       ]
@@ -110,8 +157,14 @@
         "system_service": "Backend VoiceService (transcribe), TaskService"
       },
       "business_rules": [
-        {"rule_id": "BR005", "description": "Голос длиннее 60 сек обрезается до 60 сек на этапе MVP."},
-        {"rule_id": "BR006", "description": "Если расшифровка пустая — ошибка 'Не удалось распознать голос'."}
+        {
+          "rule_id": "BR005",
+          "description": "Голос длиннее 60 сек обрезается до 60 сек на этапе MVP."
+        },
+        {
+          "rule_id": "BR006",
+          "description": "Если расшифровка пустая — ошибка 'Не удалось распознать голос'."
+        }
       ],
       "acceptance_criteria": [
         {
@@ -122,7 +175,9 @@
             "and_preconditions": [],
             "when": "Пользователь отправляет voice-сообщение длиной 5 сек",
             "then": "Бот распознаёт текст и создаёт задачу с deadline=2026-05-15 18:00",
-            "and_postconditions": ["В ответе пользователю — расшифровка и карточка задачи"]
+            "and_postconditions": [
+              "В ответе пользователю — расшифровка и карточка задачи"
+            ]
           }
         },
         {
@@ -138,7 +193,11 @@
         }
       ],
       "non_functional_requirements": [
-        {"nfr_id": "NFR002", "type": "performance", "description": "Расшифровка voice ≤30 сек обрабатывается за ≤6 сек."}
+        {
+          "nfr_id": "NFR002",
+          "type": "performance",
+          "description": "Расшифровка voice ≤30 сек обрабатывается за ≤6 сек."
+        }
       ],
       "test_cases": [
         {
@@ -148,7 +207,14 @@
           "action": "Бот вызывает /api/v1/voice/transcribe затем /api/v1/tasks",
           "assertion": "Создана задача с заголовком из расшифровки",
           "examples": [
-            {"input": {"audio_bytes": "..."}, "expected": {"transcribed_text": "Подготовить отчёт до пятницы"}}
+            {
+              "input": {
+                "audio_bytes": "..."
+              },
+              "expected": {
+                "transcribed_text": "Подготовить отчёт до пятницы"
+              }
+            }
           ]
         },
         {
@@ -158,7 +224,14 @@
           "action": "Бот вызывает /api/v1/voice/transcribe",
           "assertion": "HTTP 422, бот отвечает с ошибкой",
           "examples": [
-            {"input": {"audio_bytes": ""}, "expected": {"status_code": 422}}
+            {
+              "input": {
+                "audio_bytes": ""
+              },
+              "expected": {
+                "status_code": 422
+              }
+            }
           ]
         }
       ]
@@ -179,9 +252,18 @@
         "system_service": "TaskService.transition_status + SchedulerService"
       },
       "business_rules": [
-        {"rule_id": "BR007", "description": "Допустимые статусы: backlog, todo, in_progress, done, cancelled, paused."},
-        {"rule_id": "BR008", "description": "Граф переходов: backlog→todo|in_progress|cancelled; todo→in_progress|paused|done|cancelled; in_progress→paused|done|cancelled; paused→in_progress|cancelled|done; done→todo (re-open); cancelled→todo."},
-        {"rule_id": "BR009", "description": "Когда до дедлайна остаётся ≤7 дней и задача в backlog — SchedulerService автоматически переводит её в todo."}
+        {
+          "rule_id": "BR007",
+          "description": "Допустимые статусы: backlog, todo, in_progress, done, cancelled, paused."
+        },
+        {
+          "rule_id": "BR008",
+          "description": "Граф переходов: backlog→todo|in_progress|cancelled; todo→in_progress|paused|done|cancelled; in_progress→paused|done|cancelled; paused→in_progress|cancelled|done; done→todo (re-open); cancelled→todo."
+        },
+        {
+          "rule_id": "BR009",
+          "description": "Когда до дедлайна остаётся ≤7 дней и задача в backlog — SchedulerService автоматически переводит её в todo."
+        }
       ],
       "acceptance_criteria": [
         {
@@ -192,7 +274,9 @@
             "and_preconditions": [],
             "when": "Пользователь нажимает inline-кнопку 'Начать'",
             "then": "Статус становится in_progress, карточка обновляется",
-            "and_postconditions": ["В таблице task_status_changes появилась запись"]
+            "and_postconditions": [
+              "В таблице task_status_changes появилась запись"
+            ]
           }
         },
         {
@@ -200,7 +284,9 @@
           "user_story": "Как пользователь, я хочу видеть автоматический перевод backlog→todo за 7 дней до дедлайна.",
           "bdd": {
             "given": "Задача в backlog с deadline через 7 дней 1 час",
-            "and_preconditions": ["SchedulerService запускает tick"],
+            "and_preconditions": [
+              "SchedulerService запускает tick"
+            ],
             "when": "Прошёл 1 час — до дедлайна осталось ровно 7 дней",
             "then": "Задача переводится в статус todo автоматически",
             "and_postconditions": []
@@ -219,7 +305,11 @@
         }
       ],
       "non_functional_requirements": [
-        {"nfr_id": "NFR003", "type": "reliability", "description": "SchedulerService срабатывает каждые 5 минут с дрейфом не более 1 минуты."}
+        {
+          "nfr_id": "NFR003",
+          "type": "reliability",
+          "description": "SchedulerService срабатывает каждые 5 минут с дрейфом не более 1 минуты."
+        }
       ],
       "test_cases": [
         {
@@ -229,7 +319,14 @@
           "action": "PATCH /api/v1/tasks/{id}/status {to: in_progress}",
           "assertion": "task.status='in_progress', запись в task_status_changes",
           "examples": [
-            {"input": {"to": "in_progress"}, "expected": {"status": "in_progress"}}
+            {
+              "input": {
+                "to": "in_progress"
+              },
+              "expected": {
+                "status": "in_progress"
+              }
+            }
           ]
         },
         {
@@ -247,7 +344,15 @@
           "action": "PATCH .../status {to: in_progress}",
           "assertion": "HTTP 422 ValidationError 'Invalid transition'",
           "examples": [
-            {"input": {"from": "done", "to": "in_progress"}, "expected": {"status_code": 422}}
+            {
+              "input": {
+                "from": "done",
+                "to": "in_progress"
+              },
+              "expected": {
+                "status_code": 422
+              }
+            }
           ]
         }
       ]
@@ -268,8 +373,14 @@
         "system_service": "TaskFavoriteService"
       },
       "business_rules": [
-        {"rule_id": "BR010", "description": "(user_id, task_id) уникальны в task_favorites."},
-        {"rule_id": "BR011", "description": "Задачи в избранном направлении автоматически считаются избранными (computed)."}
+        {
+          "rule_id": "BR010",
+          "description": "(user_id, task_id) уникальны в task_favorites."
+        },
+        {
+          "rule_id": "BR011",
+          "description": "Задачи в избранном направлении автоматически считаются избранными (computed)."
+        }
       ],
       "acceptance_criteria": [
         {
@@ -331,13 +442,38 @@
         "system_service": "MessageContextService + ExtractorService + PendingTaskService"
       },
       "business_rules": [
-        {"rule_id": "BR012", "description": "/setup_chat в группе — подписывает чат, владельцем подписки становится тот, кто вызвал."},
-        {"rule_id": "BR013", "description": "Хранится контекст последних 10 сообщений на чат (sliding window)."},
-        {"rule_id": "BR014", "description": "Если бот тегнут (@username) или ответ цитированием на бот-сообщение — задача apprоввится автоматически."},
-        {"rule_id": "BR015", "description": "Задача всегда падает на user_id владельца бота в текущей версии (без распределения)."},
-        {"rule_id": "BR016", "description": "Дубли по (chat_id, message_id) не обрабатываются повторно."},
-        {"rule_id": "BR016a", "description": "Ингест всегда вызывает ExtractorService.extract_multiple — если LLM нашёл N задач, создаётся ровно N PendingTask (или Task при автоапруве). Одно сообщение никогда не превращается в один pending с двумя задачами в одном поле."},
-        {"rule_id": "BR016b", "description": "Дедуп F010 применяется отдельно к каждой извлечённой задаче (через create_or_find_duplicate)."}
+        {
+          "rule_id": "BR012",
+          "description": "/setup_chat в группе — подписывает чат, владельцем подписки становится тот, кто вызвал."
+        },
+        {
+          "rule_id": "BR013",
+          "description": "Хранится контекст последних 10 сообщений на чат (sliding window)."
+        },
+        {
+          "rule_id": "BR014",
+          "description": "Если бот тегнут (@username) или ответ цитированием на бот-сообщение — задача apprоввится автоматически."
+        },
+        {
+          "rule_id": "BR015",
+          "description": "Задача всегда падает на user_id владельца бота в текущей версии (без распределения)."
+        },
+        {
+          "rule_id": "BR016",
+          "description": "Дубли по (chat_id, message_id) не обрабатываются повторно."
+        },
+        {
+          "rule_id": "BR016a",
+          "description": "Ингест всегда вызывает ExtractorService.extract_multiple — если LLM нашёл N задач, создаётся ровно N PendingTask (или Task при автоапруве). Одно сообщение никогда не превращается в один pending с двумя задачами в одном поле."
+        },
+        {
+          "rule_id": "BR016b",
+          "description": "Дедуп F010 применяется отдельно к каждой извлечённой задаче (через create_or_find_duplicate)."
+        },
+        {
+          "rule_id": "BR074",
+          "description": "Сообщение, написанное владельцем подписки в групповом чате или business DM обрабатывается тем же ingest pipeline что и сообщения других участников — это легитимный способ владельца делегировать себе задачу (или зафиксировать поручение кому-то ещё). Автор у такой задачи скрыт (is_self_write=True → source_sender_display=None)."
+        }
       ],
       "acceptance_criteria": [
         {
@@ -348,7 +484,9 @@
             "and_preconditions": [],
             "when": "CEO U1 пишет в чате /setup_chat",
             "then": "В tg_chats_subscribed появляется (chat_id=C1, owner_user_id=U1, enabled=true)",
-            "and_postconditions": ["Бот отвечает 'Чат подписан'"]
+            "and_postconditions": [
+              "Бот отвечает 'Чат подписан'"
+            ]
           }
         },
         {
@@ -356,7 +494,9 @@
           "user_story": "Как CEO, я хочу получать карточку-согласование на задачу, упомянутую в чате.",
           "bdd": {
             "given": "Чат C1 подписан, сообщение 'надо собрать отчёт к пятнице'",
-            "and_preconditions": ["LLM классифицирует как task"],
+            "and_preconditions": [
+              "LLM классифицирует как task"
+            ],
             "when": "Сообщение попадает в /api/v1/messages/ingest",
             "then": "Создаётся PendingTask, бот отправляет CEO карточку с inline-кнопками 'Редактировать', 'Принять', 'Отклонить'",
             "and_postconditions": []
@@ -370,7 +510,9 @@
             "and_preconditions": [],
             "when": "Кто-то пишет '@ihuman_manager_bot Подготовить презентацию до пятницы'",
             "then": "PendingTask сразу апрувится → создаётся Task без согласования",
-            "and_postconditions": ["Бот отвечает в чат 'Задача создана'"]
+            "and_postconditions": [
+              "Бот отвечает в чат 'Задача создана'"
+            ]
           }
         },
         {
@@ -389,16 +531,41 @@
           "user_story": "Как CEO, я хочу получить ОТДЕЛЬНУЮ карточку на каждую задачу, если в одном сообщении их несколько.",
           "bdd": {
             "given": "Подписанный чат, сообщение 'купить молоко и сделать презентацию для партнёров до пятницы'",
-            "and_preconditions": ["LLM возвращает 2 задачи: 'Купить молоко' и 'Подготовить презентацию для партнёров'"],
+            "and_preconditions": [
+              "LLM возвращает 2 задачи: 'Купить молоко' и 'Подготовить презентацию для партнёров'"
+            ],
             "when": "Сообщение приходит в /api/v1/messages/ingest, is_bot_mentioned=false",
             "then": "Создаются 2 PendingTask, бот шлёт владельцу 2 отдельные карточки",
-            "and_postconditions": ["decision='pending_created_multi', pending_task_ids.length=2"]
+            "and_postconditions": [
+              "decision='pending_created_multi', pending_task_ids.length=2"
+            ]
+          }
+        },
+        {
+          "scenario_id": "SC049",
+          "user_story": "Я (владелец) в подписанном чате пишу 'Подготовить отчёт до пятницы' — это должно стать задачей у меня в pending без указания автора.",
+          "bdd": {
+            "given": "Группа подписана, sender_user_id == sub.owner_user_id",
+            "and_preconditions": [
+              "Извлекатор F019 возвращает 1 задачу"
+            ],
+            "when": "Прилетает текст 'Подготовить отчёт до пятницы'",
+            "then": "MessageIngestService создаёт PendingTask без source_sender_display и без source_sender_user_id; владелец видит карточку 'на согласование' без блока автора.",
+            "and_postconditions": []
           }
         }
       ],
       "non_functional_requirements": [
-        {"nfr_id": "NFR004", "type": "performance", "description": "Time-to-card ≤5 минут (NFR из SPEC v0.1)."},
-        {"nfr_id": "NFR005", "type": "privacy", "description": "Бот читает только подписанные чаты, не персональные."}
+        {
+          "nfr_id": "NFR004",
+          "type": "performance",
+          "description": "Time-to-card ≤5 минут (NFR из SPEC v0.1)."
+        },
+        {
+          "nfr_id": "NFR005",
+          "type": "privacy",
+          "description": "Бот читает только подписанные чаты, не персональные."
+        }
       ],
       "test_cases": [
         {
@@ -440,6 +607,14 @@
           "action": "POST /api/v1/messages/ingest без тега",
           "assertion": "decision='pending_created_multi', pending_task_ids.length == 2, каждая Pending имеет свой title/description/deadline/priority",
           "examples": []
+        },
+        {
+          "test_id": "T049",
+          "scenario_id": "SC049",
+          "setup": "ChatSubscriptionService.get_active → sub.owner_user_id=42; payload.sender_user_id=42; ExtractorService → [{title:...}]",
+          "action": "MessageIngestService.ingest(...)",
+          "assertion": "create_pending получил source_sender_display=None и source_sender_user_id=None",
+          "examples": []
         }
       ]
     },
@@ -459,8 +634,14 @@
         "system_service": "SchedulerService + NotificationService"
       },
       "business_rules": [
-        {"rule_id": "BR017", "description": "Уведомление отсылается один раз в момент наступления дедлайна (с допуском tick ±5 мин)."},
-        {"rule_id": "BR018", "description": "Запись в notification_log создаётся для каждого факта отправки уведомления, повторных отправок нет."}
+        {
+          "rule_id": "BR017",
+          "description": "Уведомление отсылается один раз в момент наступления дедлайна (с допуском tick ±5 мин)."
+        },
+        {
+          "rule_id": "BR018",
+          "description": "Запись в notification_log создаётся для каждого факта отправки уведомления, повторных отправок нет."
+        }
       ],
       "acceptance_criteria": [
         {
@@ -468,7 +649,9 @@
           "user_story": "Как пользователь, я хочу получить уведомление в момент дедлайна для незавершённой задачи.",
           "bdd": {
             "given": "Задача T1, deadline=2026-05-12T15:00, status=in_progress",
-            "and_preconditions": ["SchedulerService запускается в 15:00"],
+            "and_preconditions": [
+              "SchedulerService запускается в 15:00"
+            ],
             "when": "Tick срабатывает",
             "then": "Бот отправляет DM с карточкой и 4 кнопками, в notification_log запись deadline_notice",
             "and_postconditions": []
@@ -541,8 +724,14 @@
         "system_service": "SchedulerService → DigestService"
       },
       "business_rules": [
-        {"rule_id": "BR019", "description": "Дайджест отправляется ровно в 09:00 МСК (Europe/Moscow), даже если пользователь в другом таймзоне."},
-        {"rule_id": "BR020", "description": "Если на сегодня задач нет — отправляется сообщение 'На сегодня задач нет, добавьте /new'."}
+        {
+          "rule_id": "BR019",
+          "description": "Дайджест отправляется ровно в 09:00 МСК (Europe/Moscow), даже если пользователь в другом таймзоне."
+        },
+        {
+          "rule_id": "BR020",
+          "description": "Если на сегодня задач нет — отправляется сообщение 'На сегодня задач нет, добавьте /new'."
+        }
       ],
       "acceptance_criteria": [
         {
@@ -550,7 +739,9 @@
           "user_story": "Как пользователь, я хочу получить в 09:00 МСК сообщение со списком задач на сегодня.",
           "bdd": {
             "given": "У пользователя U1 есть 3 задачи на сегодня",
-            "and_preconditions": ["Сейчас 09:00 МСК"],
+            "and_preconditions": [
+              "Сейчас 09:00 МСК"
+            ],
             "when": "SchedulerService отправляет триггер DigestService.send_morning",
             "then": "U1 получает DM с группировкой задач + кнопкой 'Начать день'",
             "and_postconditions": []
@@ -604,9 +795,18 @@
         "system_service": "TaskService.schedule"
       },
       "business_rules": [
-        {"rule_id": "BR021", "description": "Если задан planned_start_at и не задан planned_end_at — planned_end_at = planned_start_at + 30 мин."},
-        {"rule_id": "BR022", "description": "planned_end_at должен быть > planned_start_at."},
-        {"rule_id": "BR023", "description": "deadline и planned_start_at независимы; planned_start_at может быть и раньше, и позже deadline."}
+        {
+          "rule_id": "BR021",
+          "description": "Если задан planned_start_at и не задан planned_end_at — planned_end_at = planned_start_at + 30 мин."
+        },
+        {
+          "rule_id": "BR022",
+          "description": "planned_end_at должен быть > planned_start_at."
+        },
+        {
+          "rule_id": "BR023",
+          "description": "deadline и planned_start_at независимы; planned_start_at может быть и раньше, и позже deadline."
+        }
       ],
       "acceptance_criteria": [
         {
@@ -668,9 +868,18 @@
         "system_service": "DirectionService"
       },
       "business_rules": [
-        {"rule_id": "BR024", "description": "(user_id, name) уникальны в directions (case-insensitive)."},
-        {"rule_id": "BR025", "description": "Удаление направления переводит задачи в direction_id=null (FK SET NULL)."},
-        {"rule_id": "BR026", "description": "Если направление избранное (is_favorite=true), все его задачи отображаются как избранные при чтении."}
+        {
+          "rule_id": "BR024",
+          "description": "(user_id, name) уникальны в directions (case-insensitive)."
+        },
+        {
+          "rule_id": "BR025",
+          "description": "Удаление направления переводит задачи в direction_id=null (FK SET NULL)."
+        },
+        {
+          "rule_id": "BR026",
+          "description": "Если направление избранное (is_favorite=true), все его задачи отображаются как избранные при чтении."
+        }
       ],
       "acceptance_criteria": [
         {
@@ -751,11 +960,26 @@
         "system_service": "TaskDedupService"
       },
       "business_rules": [
-        {"rule_id": "BR027", "description": "Окно сравнения — 7 дней назад от сейчас."},
-        {"rule_id": "BR028", "description": "Сравниваются только задачи в активных статусах: backlog, todo, in_progress, paused, blocked."},
-        {"rule_id": "BR029", "description": "Порог сходства — 85 (rapidfuzz.fuzz.token_set_ratio после нормализации: lower, удаление пунктуации, схлопывание whitespace)."},
-        {"rule_id": "BR030", "description": "Topic-prefix: первое нормализованное слово (>=3 символа) должно совпадать у обеих задач — это отсекает ложноположительные срабатывания на общих фразах."},
-        {"rule_id": "BR031", "description": "Параметр force=true в API позволяет обойти дедуп (для кнопки 'Всё равно создать')."}
+        {
+          "rule_id": "BR027",
+          "description": "Окно сравнения — 7 дней назад от сейчас."
+        },
+        {
+          "rule_id": "BR028",
+          "description": "Сравниваются только задачи в активных статусах: backlog, todo, in_progress, paused, blocked."
+        },
+        {
+          "rule_id": "BR029",
+          "description": "Порог сходства — 85 (rapidfuzz.fuzz.token_set_ratio после нормализации: lower, удаление пунктуации, схлопывание whitespace)."
+        },
+        {
+          "rule_id": "BR030",
+          "description": "Topic-prefix: первое нормализованное слово (>=3 символа) должно совпадать у обеих задач — это отсекает ложноположительные срабатывания на общих фразах."
+        },
+        {
+          "rule_id": "BR031",
+          "description": "Параметр force=true в API позволяет обойти дедуп (для кнопки 'Всё равно создать')."
+        }
       ],
       "acceptance_criteria": [
         {
@@ -766,7 +990,9 @@
             "and_preconditions": [],
             "when": "U1 отправляет '/new подготовить квартальный отчёт сегодня'",
             "then": "Новая задача не создаётся; вернётся существующая",
-            "and_postconditions": ["В ответе бэкенда — duplicate_of_task_id=ID существующей"]
+            "and_postconditions": [
+              "В ответе бэкенда — duplicate_of_task_id=ID существующей"
+            ]
           }
         },
         {
@@ -793,7 +1019,11 @@
         }
       ],
       "non_functional_requirements": [
-        {"nfr_id": "NFR006", "type": "performance", "description": "Дедуп-сравнение для одного create ≤ 50ms при ≤ 200 активных задачах."}
+        {
+          "nfr_id": "NFR006",
+          "type": "performance",
+          "description": "Дедуп-сравнение для одного create ≤ 50ms при ≤ 200 активных задачах."
+        }
       ],
       "test_cases": [
         {
@@ -838,9 +1068,18 @@
         "system_service": "SchedulerService + DigestService"
       },
       "business_rules": [
-        {"rule_id": "BR032", "description": "Время вечернего дайджеста — 18:30 МСК (Europe/Moscow), один раз в сутки."},
-        {"rule_id": "BR033", "description": "Содержит группы: ✅ Завершено сегодня, 🔵 В работе, ⏱ Просрочено."},
-        {"rule_id": "BR034", "description": "Если за день не было активности — дайджест не отправляется."}
+        {
+          "rule_id": "BR032",
+          "description": "Время вечернего дайджеста — 18:30 МСК (Europe/Moscow), один раз в сутки."
+        },
+        {
+          "rule_id": "BR033",
+          "description": "Содержит группы: ✅ Завершено сегодня, 🔵 В работе, ⏱ Просрочено."
+        },
+        {
+          "rule_id": "BR034",
+          "description": "Если за день не было активности — дайджест не отправляется."
+        }
       ],
       "acceptance_criteria": [
         {
@@ -851,7 +1090,9 @@
             "and_preconditions": [],
             "when": "Срабатывает scheduler tick",
             "then": "U1 получает DM с 3 группами",
-            "and_postconditions": ["NotificationLog имеет запись evening_digest"]
+            "and_postconditions": [
+              "NotificationLog имеет запись evening_digest"
+            ]
           }
         }
       ],
@@ -883,9 +1124,18 @@
         "system_service": "TaskService.list_for_user (используется существующий API)"
       },
       "business_rules": [
-        {"rule_id": "BR035", "description": "/today: deadline между сегодня 00:00 и 23:59 МСК ИЛИ planned_start_at в этот же интервал."},
-        {"rule_id": "BR036", "description": "/overdue: deadline < сейчас И status ∉ {done, cancelled}."},
-        {"rule_id": "BR037", "description": "/active: status ∈ {todo, in_progress, blocked}."}
+        {
+          "rule_id": "BR035",
+          "description": "/today: deadline между сегодня 00:00 и 23:59 МСК ИЛИ planned_start_at в этот же интервал."
+        },
+        {
+          "rule_id": "BR036",
+          "description": "/overdue: deadline < сейчас И status ∉ {done, cancelled}."
+        },
+        {
+          "rule_id": "BR037",
+          "description": "/active: status ∈ {todo, in_progress, blocked}."
+        }
       ],
       "acceptance_criteria": [
         {
@@ -947,7 +1197,10 @@
         "system_service": "TaskService.transition_status"
       },
       "business_rules": [
-        {"rule_id": "BR038", "description": "Переходы: backlog/todo/in_progress → blocked; blocked → in_progress|done|cancelled|todo."}
+        {
+          "rule_id": "BR038",
+          "description": "Переходы: backlog/todo/in_progress → blocked; blocked → in_progress|done|cancelled|todo."
+        }
       ],
       "acceptance_criteria": [
         {
@@ -990,9 +1243,18 @@
         "system_service": "TaskService.create_from_text (с явным title/deadline)"
       },
       "business_rules": [
-        {"rule_id": "BR039", "description": "Разделитель полей — символ |."},
-        {"rule_id": "BR040", "description": "deadline — ISO 8601 или относительный 'tomorrow 18:00'; если не передан — сегодня 18:00 МСК."},
-        {"rule_id": "BR041", "description": "Direction — имя существующего направления; если не найдено — направление не присваивается, в ответе предупреждение."}
+        {
+          "rule_id": "BR039",
+          "description": "Разделитель полей — символ |."
+        },
+        {
+          "rule_id": "BR040",
+          "description": "deadline — ISO 8601 или относительный 'tomorrow 18:00'; если не передан — сегодня 18:00 МСК."
+        },
+        {
+          "rule_id": "BR041",
+          "description": "Direction — имя существующего направления; если не найдено — направление не присваивается, в ответе предупреждение."
+        }
       ],
       "acceptance_criteria": [
         {
@@ -1035,11 +1297,26 @@
         "system_service": "ExtractorService.extract_multiple"
       },
       "business_rules": [
-        {"rule_id": "BR042", "description": "Если LLM возвращает 0 задач — поведение как старая classify (текст не является задачей)."},
-        {"rule_id": "BR043", "description": "Если 1 задача — поведение идентично F001/F002/F005."},
-        {"rule_id": "BR044", "description": "Если 2+ задач — каждая проходит дедуп (F010) независимо; затем каждая создаётся, ответ содержит список созданных + дублей."},
-        {"rule_id": "BR045", "description": "Лимит — не более 10 задач из одного сообщения (защита от шумовых LLM-ответов)."},
-        {"rule_id": "BR046", "description": "В подписанном чате (F005): если бот тегнут — каждая задача автоапрувится; иначе все создаются как PendingTask."}
+        {
+          "rule_id": "BR042",
+          "description": "Если LLM возвращает 0 задач — поведение как старая classify (текст не является задачей)."
+        },
+        {
+          "rule_id": "BR043",
+          "description": "Если 1 задача — поведение идентично F001/F002/F005."
+        },
+        {
+          "rule_id": "BR044",
+          "description": "Если 2+ задач — каждая проходит дедуп (F010) независимо; затем каждая создаётся, ответ содержит список созданных + дублей."
+        },
+        {
+          "rule_id": "BR045",
+          "description": "Лимит — не более 10 задач из одного сообщения (защита от шумовых LLM-ответов)."
+        },
+        {
+          "rule_id": "BR046",
+          "description": "В подписанном чате (F005): если бот тегнут — каждая задача автоапрувится; иначе все создаются как PendingTask."
+        }
       ],
       "acceptance_criteria": [
         {
@@ -1050,7 +1327,9 @@
             "and_preconditions": [],
             "when": "U1 шлёт '/new позвонить Алине и подготовить отчёт до пятницы'",
             "then": "Создаются 2 задачи: 'Позвонить Алине' (deadline=сегодня 18:00) и 'Подготовить отчёт' (deadline=ближайшая пятница 18:00)",
-            "and_postconditions": ["Бот шлёт сводное сообщение и 2 карточки"]
+            "and_postconditions": [
+              "Бот шлёт сводное сообщение и 2 карточки"
+            ]
           }
         },
         {
@@ -1077,7 +1356,11 @@
         }
       ],
       "non_functional_requirements": [
-        {"nfr_id": "NFR007", "type": "performance", "description": "Multi-extract ≤ 7 секунд на сообщение из 200 слов."}
+        {
+          "nfr_id": "NFR007",
+          "type": "performance",
+          "description": "Multi-extract ≤ 7 секунд на сообщение из 200 слов."
+        }
       ],
       "test_cases": [
         {
@@ -1122,10 +1405,22 @@
         "system_service": "Backend BusinessConnectionService + MessageIngestService"
       },
       "business_rules": [
-        {"rule_id": "BR047", "description": "При получении business_connection — upsert (business_connection_id, owner_user_id, is_enabled)."},
-        {"rule_id": "BR048", "description": "is_enabled=False → задачи не извлекаются."},
-        {"rule_id": "BR049", "description": "Ингестируются ВСЕ сообщения в DM-чатах владельца — и входящие, и его собственные исходящие. Бот не пишет ни в один DM-чат от имени владельца, общение с ботом только через DM с самим ботом."},
-        {"rule_id": "BR050", "description": "Для каждого DM-чата под business-владельцем автоматически создаётся ChatSubscription, чтобы переиспользовать ingest pipeline."}
+        {
+          "rule_id": "BR047",
+          "description": "При получении business_connection — upsert (business_connection_id, owner_user_id, is_enabled)."
+        },
+        {
+          "rule_id": "BR048",
+          "description": "is_enabled=False → задачи не извлекаются."
+        },
+        {
+          "rule_id": "BR049",
+          "description": "Ингестируются ВСЕ сообщения в DM-чатах владельца — и входящие, и его собственные исходящие. Бот не пишет ни в один DM-чат от имени владельца, общение с ботом только через DM с самим ботом."
+        },
+        {
+          "rule_id": "BR050",
+          "description": "Для каждого DM-чата под business-владельцем автоматически создаётся ChatSubscription, чтобы переиспользовать ingest pipeline."
+        }
       ],
       "acceptance_criteria": [
         {
@@ -1136,7 +1431,9 @@
             "and_preconditions": [],
             "when": "Telegram присылает business_connection {id: BC1, user.id: U1, is_enabled: true}",
             "then": "В business_connections появляется запись (BC1, U1, is_enabled=true)",
-            "and_postconditions": ["U1 получает DM '✅ Подключён к Telegram Business'"]
+            "and_postconditions": [
+              "U1 получает DM '✅ Подключён к Telegram Business'"
+            ]
           }
         },
         {
@@ -1152,7 +1449,11 @@
         }
       ],
       "non_functional_requirements": [
-        {"nfr_id": "NFR008", "type": "privacy", "description": "Бот читает только сообщения подключённого business-аккаунта; ничего не пишет от его имени без явного запроса."}
+        {
+          "nfr_id": "NFR008",
+          "type": "privacy",
+          "description": "Бот читает только сообщения подключённого business-аккаунта; ничего не пишет от его имени без явного запроса."
+        }
       ],
       "test_cases": [
         {
@@ -1189,9 +1490,22 @@
         "system_service": "ExtractorService"
       },
       "business_rules": [
-        {"rule_id": "BR051", "description": "CLASSIFIER_MODEL и DECOMPOSER_MODEL читаются из env. Дефолты: gpt-4o-mini и gpt-4o."},
-        {"rule_id": "BR052", "description": "Если classifier вернул has_task=false — extract_multiple возвращает [] без вызова decomposer."},
-        {"rule_id": "BR053", "description": "Без OPENAI_API_KEY оба этапа падают на эвристический фоллбек."}
+        {
+          "rule_id": "BR051",
+          "description": "CLASSIFIER_MODEL и DECOMPOSER_MODEL читаются из env. Дефолты: gpt-4o-mini и gpt-4o."
+        },
+        {
+          "rule_id": "BR052",
+          "description": "Если classifier вернул has_task=false — extract_multiple возвращает [] без вызова decomposer."
+        },
+        {
+          "rule_id": "BR053",
+          "description": "Без OPENAI_API_KEY оба этапа падают на эвристический фоллбек."
+        },
+        {
+          "rule_id": "BR075",
+          "description": "Классификатор и декомпозер ОБЯЗАНЫ считать taskful'ными также сообщения, написанные самим владельцем (is_owner=True в контексте). Это включает делегирование (поручения, адресованные участникам чата) и self-assigned напоминания. Метка '(вы)' в контексте — не повод отбрасывать сообщение."
+        }
       ],
       "acceptance_criteria": [
         {
@@ -1218,8 +1532,16 @@
         }
       ],
       "non_functional_requirements": [
-        {"nfr_id": "NFR009", "type": "performance", "description": "non-task сообщение должно укладываться в 1.5 сек (только classifier)."},
-        {"nfr_id": "NFR010", "type": "cost", "description": "стоимость non-task сообщения ~10% от единого decomposer-вызова."}
+        {
+          "nfr_id": "NFR009",
+          "type": "performance",
+          "description": "non-task сообщение должно укладываться в 1.5 сек (только classifier)."
+        },
+        {
+          "nfr_id": "NFR010",
+          "type": "cost",
+          "description": "стоимость non-task сообщения ~10% от единого decomposer-вызова."
+        }
       ],
       "test_cases": [
         {
@@ -1256,9 +1578,18 @@
         "system_service": "PersonService"
       },
       "business_rules": [
-        {"rule_id": "BR054", "description": "Upsert по telegram_user_id (UNIQUE)."},
-        {"rule_id": "BR055", "description": "При каждом сообщении message_count +=1 и last_seen_at = now()."},
-        {"rule_id": "BR056", "description": "Username и имена обновляются, если изменились."}
+        {
+          "rule_id": "BR054",
+          "description": "Upsert по telegram_user_id (UNIQUE)."
+        },
+        {
+          "rule_id": "BR055",
+          "description": "При каждом сообщении message_count +=1 и last_seen_at = now()."
+        },
+        {
+          "rule_id": "BR056",
+          "description": "Username и имена обновляются, если изменились."
+        }
       ],
       "acceptance_criteria": [
         {
@@ -1312,9 +1643,18 @@
         "system_service": "VoiceService (Whisper) + MessageIngestService"
       },
       "business_rules": [
-        {"rule_id": "BR057", "description": "voice/audio в group/channel/business message → скачать в память → POST /voice/transcribe → подставить text в ingest."},
-        {"rule_id": "BR058", "description": "Если транскрипция пустая — сообщение игнорируется."},
-        {"rule_id": "BR059", "description": "Whisper-ошибка не валит обработку других сообщений (try/except + log.exception)."}
+        {
+          "rule_id": "BR057",
+          "description": "voice/audio в group/channel/business message → скачать в память → POST /voice/transcribe → подставить text в ingest."
+        },
+        {
+          "rule_id": "BR058",
+          "description": "Если транскрипция пустая — сообщение игнорируется."
+        },
+        {
+          "rule_id": "BR059",
+          "description": "Whisper-ошибка не валит обработку других сообщений (try/except + log.exception)."
+        }
       ],
       "acceptance_criteria": [
         {
@@ -1322,7 +1662,9 @@
           "user_story": "Анастасия шлёт мне голосовое в DM (business) — извлекаются задачи.",
           "bdd": {
             "given": "Business подключён, Анастасия в DM шлёт voice 'надо подготовить отчёт до пятницы'",
-            "and_preconditions": ["VoiceAPI.transcribe возвращает 'надо подготовить отчёт до пятницы'"],
+            "and_preconditions": [
+              "VoiceAPI.transcribe возвращает 'надо подготовить отчёт до пятницы'"
+            ],
             "when": "Бот получает business_message с voice",
             "then": "Расшифровывается, ingest создаёт PendingTask, владельцу в DM прилетает карточка",
             "and_postconditions": []
@@ -1330,7 +1672,11 @@
         }
       ],
       "non_functional_requirements": [
-        {"nfr_id": "NFR011", "type": "performance", "description": "Голос ≤30 сек обрабатывается в ≤8 сек end-to-end."}
+        {
+          "nfr_id": "NFR011",
+          "type": "performance",
+          "description": "Голос ≤30 сек обрабатывается в ≤8 сек end-to-end."
+        }
       ],
       "test_cases": [
         {
@@ -1339,6 +1685,169 @@
           "setup": "monkeypatch VoiceAPI.transcribe + ExtractorService → 1 задача",
           "action": "Эмулируем business_message с voice (mock aiogram message)",
           "assertion": "PendingCardAnswer.send вызван с владельцем",
+          "examples": []
+        }
+      ]
+    },
+    {
+      "feature_id": "F024",
+      "general_info": {
+        "name": "Редактирование созданной задачи — кнопочный UI + LLM-edit",
+        "overview": "На карточке созданной задачи есть кнопка ✏️ Редактировать. По ней карточка превращается в экран редактирования с пятью группами действий: Изменить название, Изменить описание, Дата · Время, переключение приоритета (🟢/🟡/🔴), Отмена/Готово. Все поля можно менять также свободным текстом, голосом или кружком — LLM-edit разбирает естественный язык. Дата и время выбираются нативными inline-пикерами: календарь (год ←/→, месяц ←/→, дни 11 в ряд) и time-picker (час ←/→, минуты 2 столбца × 6 строк по шагам 5 минут). По «Готово» возвращаемся к карточке задачи."
+      },
+      "goal_and_context": {
+        "business_goal": "Уже созданная задача должна быть редактируемой без переоформления — приоритет, название, дедлайн, описание меняются за 1–2 клика.",
+        "user_problem": "Раньше отредактировать можно было только pending-карточку до Accept. После Accept задачу нельзя было быстро поменять — приходилось удалять и создавать заново."
+      },
+      "actors_and_roles": {
+        "primary_user": "Владелец задач",
+        "system_service": "TasksAPI (PUT /tasks/{id}, POST /tasks/{id}/llm-edit), VoiceAPI (whisper)"
+      },
+      "business_rules": [
+        {
+          "rule_id": "BR065",
+          "description": "Кнопка ✏️ Редактировать на карточке задачи открывает экран редактирования в том же сообщении (edit_text), карточка не дублируется."
+        },
+        {
+          "rule_id": "BR066",
+          "description": "Главный экран редактирования имеет ровно эти ряды: [Изменить название] / [Изменить описание] / [Дата · Время] / [🟢 🟡 🔴 — приоритет] / [🚫 Отмена · ✅ Готово]. Если у задачи есть описание — между «Изменить описание» и [Дата·Время] появляется [🗑 Стереть описание]; если есть дедлайн — между [Дата·Время] и приоритетом появляется [🗑 Снять дедлайн]."
+        },
+        {
+          "rule_id": "BR067",
+          "description": "Свободный текст/голос/кружок на главном экране редактирования уходит в POST /tasks/{id}/llm-edit; карточка перерисовывается с обновлёнными полями."
+        },
+        {
+          "rule_id": "BR068",
+          "description": "Подэкран «Изменить название» / «Изменить описание»: показывает текущее значение, ждёт текст/голос/кружок, есть «← Назад». Транскрипция через тот же VoiceAPI.transcribe (gpt-4o-transcribe)."
+        },
+        {
+          "rule_id": "BR069",
+          "description": "Календарь: ряд года с ←/→, ряд месяца с ←/→, дни месяца по ≤11 в ряд (3 ряда максимум), последний ряд — «← Назад» и «✅ Применить». Текущий выбранный день помечен ●. При перелистывании месяца/года день сохраняется и обрезается до последнего дня нового месяца."
+        },
+        {
+          "rule_id": "BR070",
+          "description": "Time-picker: ряд часа с ←/→ (0..23 циклично), минуты 2×6 по шагам 5 минут (00,05,10,…,55), последний ряд — «← Назад» и «✅ Применить»."
+        },
+        {
+          "rule_id": "BR071",
+          "description": "Поле deadline в БД собирается как (Y,M,D) из календаря + (H,M) из time-picker'a в зоне Europe/Moscow. Если в задаче уже был дедлайн, при первом открытии пикеров подсвечены его значения; иначе — сегодняшняя дата и 09:00."
+        },
+        {
+          "rule_id": "BR072",
+          "description": "Переключение приоритета (🟢/🟡/🔴) — мгновенный PUT /tasks/{id} с priority. Активный приоритет помечен ● в кнопке."
+        },
+        {
+          "rule_id": "BR073",
+          "description": "Глобальные catch-all виджеты создания задач (F001/F002) применяют StateFilter(default_state), чтобы FSM-bound text/voice во время редактирования не попадали к ним."
+        }
+      ],
+      "acceptance_criteria": [
+        {
+          "scenario_id": "SC044",
+          "user_story": "Главный экран показывает текущие поля и обязательные ряды кнопок.",
+          "bdd": {
+            "given": "Задача с title, description, deadline, priority=medium",
+            "and_preconditions": [],
+            "when": "Жму ✏️ Редактировать на карточке",
+            "then": "Сообщение редактируется в экран редактирования: видны title/desc/deadline/priority и ряды кнопок [Изменить название] / [Изменить описание] / [🗑 Стереть описание] / [📅 Дата · 🕐 Время] / [🗑 Снять дедлайн] / [🟢 🟡 🔴] / [🚫 Отмена · ✅ Готово]",
+            "and_postconditions": [
+              "FSM-state = TaskEditStates.main, FSM data хранит task_id и координаты карточки"
+            ]
+          }
+        },
+        {
+          "scenario_id": "SC045",
+          "user_story": "Изменение названия голосом/текстом обновляет поле и возвращает на главный экран.",
+          "bdd": {
+            "given": "FSM = TaskEditStates.awaiting_title, task_id известен",
+            "and_preconditions": [
+              "VoiceAPI.transcribe возвращает 'Новый заголовок'"
+            ],
+            "when": "Шлю голосовое (или текст) 'Новый заголовок'",
+            "then": "PUT /tasks/{id} c title='Новый заголовок'; карточка перерисована, state снова main",
+            "and_postconditions": []
+          }
+        },
+        {
+          "scenario_id": "SC046",
+          "user_story": "Календарь позволяет выбрать новую дату.",
+          "bdd": {
+            "given": "FSM = picking_date, год=2026, месяц=5, день=14",
+            "and_preconditions": [],
+            "when": "Жму → у месяца и затем выбираю 7 и Применить",
+            "then": "PUT /tasks/{id} с deadline=2026-06-07T<H:M>:00+03:00 (часы и минуты — из текущего deadline)",
+            "and_postconditions": []
+          }
+        },
+        {
+          "scenario_id": "SC047",
+          "user_story": "Time-picker позволяет выбрать новое время по шагам 5 минут.",
+          "bdd": {
+            "given": "FSM = picking_time, час=9, минуты=0",
+            "and_preconditions": [],
+            "when": "Жму → у часа и выбираю минуты 25, затем Применить",
+            "then": "PUT /tasks/{id} с deadline на день из задачи + 10:25",
+            "and_postconditions": []
+          }
+        },
+        {
+          "scenario_id": "SC048",
+          "user_story": "Свободный текст на главном экране уходит в LLM-edit.",
+          "bdd": {
+            "given": "FSM = TaskEditStates.main, task_id известен",
+            "and_preconditions": [],
+            "when": "Шлю 'поменяй приоритет на высокий'",
+            "then": "POST /tasks/{id}/llm-edit с инструкцией; карточка перерисована с priority=high",
+            "and_postconditions": []
+          }
+        }
+      ],
+      "non_functional_requirements": [
+        {
+          "nfr_id": "NFR013",
+          "type": "ux",
+          "description": "Все экраны редактора — это edit_text над одним и тем же сообщением (карточкой). Нельзя плодить новые сообщения в DM."
+        }
+      ],
+      "test_cases": [
+        {
+          "test_id": "T044",
+          "scenario_id": "SC044",
+          "setup": "render_main + build_main_kb с тестовым task",
+          "action": "Считать структуру inline_keyboard",
+          "assertion": "Проверить порядок и состав рядов, включая ●-маркер приоритета",
+          "examples": []
+        },
+        {
+          "test_id": "T045",
+          "scenario_id": "SC045",
+          "setup": "AsyncMock TasksAPI.update и bot.edit_message_text",
+          "action": "on_title_text с text='Новый заголовок'",
+          "assertion": "update вызван с title='Новый заголовок', state сброшен в main",
+          "examples": []
+        },
+        {
+          "test_id": "T046",
+          "scenario_id": "SC046",
+          "setup": "build_date_kb (year=2026,month=5,day=14)",
+          "action": "Проверить структуру кнопок и shift_date(dm=+1)",
+          "assertion": "ряды и обрезание дня в коротких месяцах работают как описано",
+          "examples": []
+        },
+        {
+          "test_id": "T047",
+          "scenario_id": "SC047",
+          "setup": "build_time_kb (h=9,m=25)",
+          "action": "Проверить, что минутный grid 2x6=12, шаг 5, и shift_hour wrap",
+          "assertion": "минутный grid корректный, час крутится 0..23",
+          "examples": []
+        },
+        {
+          "test_id": "T048",
+          "scenario_id": "SC048",
+          "setup": "AsyncMock TasksAPI.llm_edit и bot.edit_message_text",
+          "action": "on_main_text с инструкцией",
+          "assertion": "llm_edit вызван с (task_id, instruction); карточка обновлена",
           "examples": []
         }
       ]

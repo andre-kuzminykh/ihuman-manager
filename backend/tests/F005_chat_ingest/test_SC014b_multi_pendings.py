@@ -15,7 +15,7 @@ from service.extractor.extractor_service import ExtractorService
 
 @pytest.mark.asyncio
 async def test_multi_pendings_created(client, monkeypatch):
-    async def fake_extract(self, text, *, context_messages=None):
+    async def fake_extract(self, text, *, context_messages=None, sender_display=None):
         return [
             {
                 "title": "Купить молоко",

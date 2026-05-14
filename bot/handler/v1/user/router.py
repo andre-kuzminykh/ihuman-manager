@@ -17,6 +17,7 @@ def build_user_router() -> Router:
     from handler.v1.user.task.F004.favorite_widget import router as favorite_router
     from handler.v1.user.task.F012.shortcut_widget import router as shortcut_router
     from handler.v1.user.task.F014.manual_task_widget import router as manual_task_router
+    from handler.v1.user.task.F024.task_edit_widget import router as task_edit_router
 
     # voice
     from handler.v1.user.voice.F002.voice_widget import router as voice_router
@@ -54,12 +55,16 @@ def build_user_router() -> Router:
         setup_chat_router,  # оставляем как ручной fallback
         manual_task_router,  # /task раньше /new — Command чёткий, конфликта нет
         shortcut_router,
+        # F024 (редактор задачи) — раньше new_task/voice/status, чтобы его
+        # FSM-bound text/voice и callback edit ловили первыми, до глобальных
+        # catch-all виджетов создания задач.
+        task_edit_router,
+        pending_action_router,
         new_task_router,
         voice_router,
         task_status_router,
         tasks_list_router,
         favorite_router,
-        pending_action_router,
         directions_router,
         digest_router,
         people_router,

@@ -10,7 +10,9 @@ from __future__ import annotations
 
 from aiogram import F, Router
 from aiogram.enums import ChatType
+from aiogram.filters import StateFilter
 from aiogram.fsm.context import FSMContext
+from aiogram.fsm.state import default_state
 from aiogram.types import Message
 
 from node.task.answer.duplicate_found_answer import DuplicateFoundAnswer
@@ -31,10 +33,10 @@ _ANSWER_REGISTRY = {
 }
 
 
-@router.message(F.chat.type == ChatType.PRIVATE, F.voice)
-@router.message(F.chat.type == ChatType.PRIVATE, F.audio)
-@router.message(F.chat.type == ChatType.PRIVATE, F.video_note)
-@router.message(F.chat.type == ChatType.PRIVATE, F.video)
+@router.message(StateFilter(default_state), F.chat.type == ChatType.PRIVATE, F.voice)
+@router.message(StateFilter(default_state), F.chat.type == ChatType.PRIVATE, F.audio)
+@router.message(StateFilter(default_state), F.chat.type == ChatType.PRIVATE, F.video_note)
+@router.message(StateFilter(default_state), F.chat.type == ChatType.PRIVATE, F.video)
 async def on_voice(message: Message, state: FSMContext) -> None:
     trigger = VoiceTrigger()
     trigger_data = await trigger.run(message, state)
