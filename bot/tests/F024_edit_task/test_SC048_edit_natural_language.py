@@ -4,9 +4,13 @@ SC048 — LLM-edit на главном экране редактирования
 Свободный текст или транскрибированное аудио уходит в /tasks/{id}/llm-edit и
 карточка перерисовывается с обновлёнными полями.
 
+Также: при нажатии ✏️ на карточке задачи **старая карточка удаляется**,
+а ниже появляется **новое** сообщение — экран редактирования.
+
 ## Трассируемость
 Feature: F024
 Scenario: SC048 — естественный язык на главном экране.
+                 BR066 — Edit click deletes old card and posts new edit-screen
 """
 
 from __future__ import annotations
@@ -15,6 +19,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
+from callback.tasks_callback import TaskActionCallback
 from handler.v1.user.task.F024 import task_edit_widget as tew
 
 
@@ -109,6 +114,51 @@ async def test_title_text_updates_title_via_update_then_back_to_main() -> None:
     assert kwargs.args[0] == 7
     assert kwargs.kwargs["title"] == "Новый заголовок"
     state.set_state.assert_awaited()
+
+
+@pytest.mark.asyncio
+async def test_open_edit_deletes_old_card_and_sends_new_edit_screen() -> None:
+    """Старая карточка задачи исчезает (delete), и **ниже** появляется
+    новая — экран редактирования. В FSM сохраняем id/координаты НОВОГО
+    сообщения, не старого."""
+    state = AsyncMock()
+    state.set_state = AsyncMock()
+    state.update_data = AsyncMock()
+
+    old_msg = AsyncMock()
+    old_msg.chat = MagicMock(id=42)
+    old_msg.message_id = 11
+    old_msg.delete = AsyncMock()
+    new_msg = MagicMock()
+    new_msg.chat = MagicMock(id=42)
+    new_msg.message_id = 999
+    old_msg.answer = AsyncMock(return_value=new_msg)
+
+    cb = AsyncMock()
+    cb.message = old_msg
+    cb.answer = AsyncMock()
+
+    fake_api = MagicMock()
+    fake_api.get = AsyncMock(return_value={
+        "id": 7,
+        "title": "Подготовить отчёт",
+        "description": None,
+        "deadline": None,
+        "priority": "medium",
+    })
+
+    with patch.object(tew, "TasksAPI", return_value=fake_api):
+        await tew.on_open_from_card(
+            cb, TaskActionCallback(task_id=7, action="edit"), state
+        )
+
+    old_msg.delete.assert_awaited_once()
+    old_msg.answer.assert_awaited_once()
+    # FSM хранит координаты НОВОГО сообщения, не старого.
+    update_kwargs = state.update_data.call_args.kwargs
+    assert update_kwargs["card_chat_id"] == 42
+    assert update_kwargs["card_message_id"] == 999
+    assert update_kwargs["task_id"] == 7
 
 
 @pytest.mark.asyncio

@@ -137,7 +137,13 @@ def _split_deadline(task: dict) -> tuple[int, int, int, int, int]:
 async def on_open_from_card(
     cb: CallbackQuery, callback_data: TaskActionCallback, state: FSMContext
 ) -> None:
-    """Жмём ✏️ «Редактировать» на карточке задачи."""
+    """Жмём ✏️ «Редактировать» на карточке задачи.
+
+    UX: старая карточка задачи **исчезает** (delete), а ниже появляется
+    **новое** сообщение — экран редактирования. Дальше все подэкраны
+    (название/описание/дата/время) перерисовываются поверх этого нового
+    сообщения через edit_text — никаких новых сообщений не плодим.
+    """
     api = TasksAPI()
     try:
         task = await api.get(callback_data.task_id)
@@ -147,15 +153,25 @@ async def on_open_from_card(
 
     text, kb = screen_main(task)
     if cb.message is not None:
+        # 1) Старая карточка исчезает.
         try:
-            await cb.message.edit_text(text, reply_markup=kb, disable_web_page_preview=True)
-        except Exception:
-            await cb.message.answer(text, reply_markup=kb, disable_web_page_preview=True)
+            await cb.message.delete()
+        except Exception as exc:
+            log.warning("delete old card failed: %s", exc)
+        # 2) Появляется новая — экран редактирования.
+        try:
+            new_msg = await cb.message.answer(
+                text, reply_markup=kb, disable_web_page_preview=True
+            )
+        except Exception as exc:
+            log.warning("send edit screen failed: %s", exc)
+            await cb.answer("Не удалось открыть редактор", show_alert=True)
+            return
         await state.set_state(TaskEditStates.main)
         await state.update_data(
             task_id=callback_data.task_id,
-            card_chat_id=cb.message.chat.id,
-            card_message_id=cb.message.message_id,
+            card_chat_id=new_msg.chat.id,
+            card_message_id=new_msg.message_id,
         )
     await cb.answer()
 
