@@ -28,6 +28,7 @@ from service.api.base_api import APIError
 from service.api.business_api import BusinessAPI
 from service.api.chats_api import ChatsAPI
 from service.api.pending_tasks_api import PendingTasksAPI
+from service.api.people_api import PeopleAPI
 from service.api.tasks_api import TasksAPI
 
 
@@ -42,6 +43,21 @@ async def on_business_message(message: Message) -> None:
     bc_id = getattr(message, "business_connection_id", None)
     if bc_id is None:
         return
+
+    # touch People — фиксируем контакт владельца.
+    if message.from_user is not None:
+        try:
+            await PeopleAPI().touch(
+                telegram_user_id=message.from_user.id,
+                username=message.from_user.username,
+                first_name=message.from_user.first_name,
+                last_name=message.from_user.last_name,
+                is_bot=message.from_user.is_bot,
+                language_code=getattr(message.from_user, "language_code", None),
+                is_premium=bool(getattr(message.from_user, "is_premium", False)),
+            )
+        except APIError:
+            pass
 
     owner = await BusinessAPI().get_owner(bc_id)
     if owner is None:

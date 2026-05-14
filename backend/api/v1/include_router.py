@@ -13,6 +13,7 @@ from api.v1.endpoints import (
     directions_router,
     extractor_router,
     pending_tasks_router,
+    people_router,
     scheduler_router,
     tasks_router,
     voice_router,
@@ -31,3 +32,4 @@ def include_routers(app: FastAPI) -> None:
     app.include_router(digest_router, prefix=prefix)
     app.include_router(scheduler_router, prefix=prefix)
     app.include_router(business_router, prefix=prefix)
+    app.include_router(people_router, prefix=prefix)

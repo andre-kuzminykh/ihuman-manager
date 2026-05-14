@@ -7,6 +7,7 @@ from api.v1.endpoints.voice import router as voice_router
 from api.v1.endpoints.digest import router as digest_router
 from api.v1.endpoints.scheduler import router as scheduler_router
 from api.v1.endpoints.business import router as business_router
+from api.v1.endpoints.people import router as people_router
 
 __all__ = [
     "tasks_router",
@@ -18,4 +19,5 @@ __all__ = [
     "digest_router",
     "scheduler_router",
     "business_router",
+    "people_router",
 ]

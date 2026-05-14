@@ -16,6 +16,8 @@ from node.chat.code.chat_message_code import ChatMessageCode
 from node.pending.answer.pending_card_answer import PendingCardAnswer
 from node.task.answer.task_created_answer import build_task_card_kb, render_task_card
 from core.loader import get_bot
+from service.api.base_api import APIError
+from service.api.people_api import PeopleAPI
 
 
 router = Router(name="chat.F005.message")
@@ -29,6 +31,20 @@ router = Router(name="chat.F005.message")
 async def on_chat_message(message: Message) -> None:
     if message.from_user is not None and message.from_user.is_bot:
         return
+    # touch People — фиксируем кто пишет.
+    if message.from_user is not None:
+        try:
+            await PeopleAPI().touch(
+                telegram_user_id=message.from_user.id,
+                username=message.from_user.username,
+                first_name=message.from_user.first_name,
+                last_name=message.from_user.last_name,
+                is_bot=message.from_user.is_bot,
+                language_code=getattr(message.from_user, "language_code", None),
+                is_premium=bool(getattr(message.from_user, "is_premium", False)),
+            )
+        except APIError:
+            pass
     code = ChatMessageCode()
     result = await code.run(message)
     decision = result["answer_name"]

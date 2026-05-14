@@ -41,6 +41,9 @@ def build_user_router() -> Router:
     # digest
     from handler.v1.user.digest.F007.digest_widget import router as digest_router
 
+    # people
+    from handler.v1.user.people.F020.people_widget import router as people_router
+
     # generic / start
     from handler.v1.user.start.start_widget import router as start_router
 
@@ -59,6 +62,7 @@ def build_user_router() -> Router:
         pending_action_router,
         directions_router,
         digest_router,
+        people_router,
         chat_message_router,  # catch-all для групповых сообщений — в конец
         business_message_router,  # business messages catch-all
     ):
