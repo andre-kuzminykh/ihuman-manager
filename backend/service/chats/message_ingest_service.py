@@ -47,9 +47,11 @@ def _resolve_display_name(
     last_name: str | None = None,
     username: str | None = None,
 ) -> str | None:
+    """Возвращает человеческое имя для отображения автора.
+    Приоритет — реальные имя+фамилия. @username идёт в гиперссылку,
+    его НЕ дублируем в скобках после имени.
+    """
     full = " ".join(filter(None, [first_name, last_name])).strip()
-    if full and username:
-        return f"{full} (@{username})"
     if full:
         return full
     if username:
