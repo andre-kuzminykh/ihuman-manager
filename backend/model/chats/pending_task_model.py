@@ -28,6 +28,7 @@ class PendingTaskModel(Base, BaseModel):
 
     source_text: Mapped[str] = mapped_column(Text, nullable=False)
     source_sender: Mapped[str | None] = mapped_column(String(80), nullable=True)
+    source_sender_display: Mapped[str | None] = mapped_column(String(200), nullable=True)
     source_chat_username: Mapped[str | None] = mapped_column(String(80), nullable=True)
     draft: Mapped[dict] = mapped_column(JSONB, nullable=False)
 

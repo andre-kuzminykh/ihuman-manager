@@ -132,6 +132,20 @@ def render_task_card(task: dict, *, title_prefix: str | None = None) -> str:
         lines.extend([title_prefix, ""])
     lines.append(f"{prio_emoji} {fav_mark}{title_block}")
 
+    # Автор — отдельная строка с гиперссылкой на его профиль/чат.
+    # Self-write — поле source_sender_display обнулено в ingest.
+    sender_display = task.get("source_sender_display")
+    sender_username = task.get("source_sender_username")
+    if sender_display:
+        if sender_username:
+            author_block = (
+                f'<a href="https://t.me/{sender_username}">'
+                f"{html.escape(sender_display)}</a>"
+            )
+        else:
+            author_block = html.escape(sender_display)
+        lines.append(f"👤 {author_block}")
+
     desc = task.get("description")
     if desc:
         lines.append(f"📝 {html.escape(desc)}")

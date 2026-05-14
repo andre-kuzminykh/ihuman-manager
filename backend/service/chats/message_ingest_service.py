@@ -147,7 +147,21 @@ class MessageIngestService:
             last_name=sender_last,
             username=payload.sender_username,
         )
-        log.info("INGEST sender_display=%r", sender_display)
+        is_self_write = (
+            payload.sender_user_id is not None
+            and payload.sender_user_id == sub.owner_user_id
+        )
+        # При self-write автора не показываем нигде — ни в карточке, ни в LLM.
+        if is_self_write:
+            sender_display = None
+            sender_username_to_store: str | None = None
+        else:
+            sender_username_to_store = payload.sender_username
+        log.info(
+            "INGEST sender_display=%r is_self_write=%s",
+            sender_display,
+            is_self_write,
+        )
 
         # 6. Извлекаем массив задач (всегда). Если 0 — игнор. Если >=1 —
         #    либо авто-апрув (бот тегнут), либо N PendingTask на согласование.
@@ -170,7 +184,8 @@ class MessageIngestService:
                 extracted=extracted,
                 chat_id=payload.chat_id,
                 source_message_id=payload.message_id,
-                source_sender_username=payload.sender_username,
+                source_sender_username=sender_username_to_store,
+                source_sender_display=sender_display,
                 source_chat_username=payload.chat_username,
                 source_kind=_TaskSource.CHAT,
             )
@@ -205,7 +220,8 @@ class MessageIngestService:
                 message_id=payload.message_id,
                 owner_user_id=sub.owner_user_id,
                 source_text=payload.text,
-                source_sender=payload.sender_username,
+                source_sender=sender_username_to_store,
+                source_sender_display=sender_display,
                 source_chat_username=payload.chat_username,
                 draft=draft,
                 is_auto_approved=False,

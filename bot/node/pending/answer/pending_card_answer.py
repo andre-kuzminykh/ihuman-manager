@@ -67,6 +67,19 @@ def render_pending_text(pending: dict) -> str:
         title_block = f'<a href="{src_url}"><b>{html.escape(title)}</b></a>'
 
     lines = [f"{prio_emoji} {title_block}"]
+
+    sender_display = pending.get("source_sender_display")
+    sender_username = pending.get("source_sender")
+    if sender_display:
+        if sender_username:
+            author_block = (
+                f'<a href="https://t.me/{sender_username}">'
+                f"{html.escape(sender_display)}</a>"
+            )
+        else:
+            author_block = html.escape(sender_display)
+        lines.append(f"👤 {author_block}")
+
     if desc:
         lines.append(f"📝 {html.escape(desc)}")
     if deadline:

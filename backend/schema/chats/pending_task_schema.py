@@ -29,6 +29,7 @@ class PendingTaskResponseSchema(BaseModel):
     owner_user_id: int
     source_text: str
     source_sender: str | None
+    source_sender_display: str | None = None
     source_chat_username: str | None = None
     draft: dict[str, Any]
     is_auto_approved: bool
