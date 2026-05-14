@@ -69,12 +69,18 @@ def render_pending_text(pending: dict) -> str:
     lines = [f"{prio_emoji} {title_block}"]
 
     sender_display = pending.get("source_sender_display")
+    sender_user_id = pending.get("source_sender_user_id")
     sender_username = pending.get("source_sender")
     if sender_display:
-        if sender_username:
+        if sender_user_id:
+            author_href = f"tg://user?id={sender_user_id}"
+        elif sender_username:
+            author_href = f"https://t.me/{sender_username}"
+        else:
+            author_href = None
+        if author_href:
             author_block = (
-                f'<a href="https://t.me/{sender_username}">'
-                f"{html.escape(sender_display)}</a>"
+                f'<a href="{author_href}">{html.escape(sender_display)}</a>'
             )
         else:
             author_block = html.escape(sender_display)

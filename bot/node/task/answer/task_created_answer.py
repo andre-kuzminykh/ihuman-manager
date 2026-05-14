@@ -135,12 +135,20 @@ def render_task_card(task: dict, *, title_prefix: str | None = None) -> str:
     # Автор — отдельная строка с гиперссылкой на его профиль/чат.
     # Self-write — поле source_sender_display обнулено в ingest.
     sender_display = task.get("source_sender_display")
+    sender_user_id = task.get("source_sender_user_id")
     sender_username = task.get("source_sender_username")
     if sender_display:
-        if sender_username:
+        # tg://user?id=<id> открывает профиль (не чат). Это более стабильно,
+        # чем t.me/<username>, который на некоторых клиентах уводит в чат.
+        if sender_user_id:
+            author_href = f"tg://user?id={sender_user_id}"
+        elif sender_username:
+            author_href = f"https://t.me/{sender_username}"
+        else:
+            author_href = None
+        if author_href:
             author_block = (
-                f'<a href="https://t.me/{sender_username}">'
-                f"{html.escape(sender_display)}</a>"
+                f'<a href="{author_href}">{html.escape(sender_display)}</a>'
             )
         else:
             author_block = html.escape(sender_display)
