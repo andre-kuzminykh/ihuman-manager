@@ -95,20 +95,23 @@ _PRIORITY_EMOJI = {"low": "🟢", "medium": "🟡", "high": "🔴"}
 
 
 def _source_url(task: dict) -> str | None:
-    """Ссылка строится только из chat_username — username чата-контакта,
-    куда задача была написана. НИКОГДА не используем sender_username, иначе
-    при self-write ссылка ведёт в твой собственный чат ('Saved Messages').
+    """Ссылка строится только из chat_username (НЕ из sender_username, чтобы
+    не уезжать в Saved Messages при self-write). Целимся в конкретное
+    сообщение, если есть message_id и username.
     """
     chat_id = task.get("chat_id")
     msg_id = task.get("source_message_id")
     if not chat_id:
         return None
     cid = int(chat_id)
-    # Supergroups / channels — публичная ссылка на конкретное сообщение.
+    # Supergroups / channels: t.me/c/<id>/<msg> — на конкретное сообщение.
     if cid < 0 and str(cid).startswith("-100") and msg_id:
         return f"https://t.me/c/{str(cid)[4:]}/{msg_id}"
-    # Private DM с другим контактом — открыть чат с ним.
     chat_username = task.get("source_chat_username")
+    if chat_username and msg_id:
+        # https://t.me/<username>/<msg_id> — в iOS/Desktop клиентах
+        # обычно анкорится на конкретное сообщение в DM.
+        return f"https://t.me/{chat_username}/{msg_id}"
     if chat_username:
         return f"https://t.me/{chat_username}"
     return None
