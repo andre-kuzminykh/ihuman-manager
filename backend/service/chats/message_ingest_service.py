@@ -101,13 +101,15 @@ class MessageIngestService:
         if sub is None:
             return MessageIngestResultSchema(decision="not_subscribed")
 
-        # 3. store context
+        # 3. store context — теперь с именами, чтобы LLM видел кто пишет.
         await self._msg_repo.create(
             session,
             chat_id=payload.chat_id,
             message_id=payload.message_id,
             sender_user_id=payload.sender_user_id,
             sender_username=payload.sender_username,
+            sender_first_name=payload.sender_first_name,
+            sender_last_name=payload.sender_last_name,
             text=payload.text,
             sent_at=payload.sent_at,
         )
@@ -116,12 +118,20 @@ class MessageIngestService:
             session, payload.chat_id, payload.message_id
         )
 
-        # 4. context for LLM
+        # 4. context for LLM — имя + время + пометка «(владелец)»
         context = await self._msg_repo.latest_for_chat(
             session, payload.chat_id, limit=config.MAX_CONTEXT_MESSAGES
         )
         context_payload = [
-            {"sender_username": m.sender_username, "text": m.text}
+            {
+                "sender_username": m.sender_username,
+                "sender_first_name": m.sender_first_name,
+                "sender_last_name": m.sender_last_name,
+                "sender_user_id": m.sender_user_id,
+                "sent_at": m.sent_at.isoformat() if m.sent_at else None,
+                "is_owner": (m.sender_user_id is not None and m.sender_user_id == sub.owner_user_id),
+                "text": m.text,
+            }
             for m in context
             if m.message_id != payload.message_id
         ]

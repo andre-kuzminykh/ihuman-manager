@@ -23,6 +23,8 @@ class MessageContextModel(Base, BaseModel):
     message_id: Mapped[int] = mapped_column(BigInteger, nullable=False)
     sender_user_id: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
     sender_username: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    sender_first_name: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    sender_last_name: Mapped[str | None] = mapped_column(String(200), nullable=True)
     text: Mapped[str] = mapped_column(Text, nullable=False)
     sent_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 

@@ -40,7 +40,7 @@ class Settings(BaseSettings):
     API_V1_PREFIX: str = "/api/v1"
     DEFAULT_TASK_DURATION_MINUTES: int = 30
     DEADLINE_TODO_WINDOW_DAYS: int = 7
-    MAX_CONTEXT_MESSAGES: int = 10
+    MAX_CONTEXT_MESSAGES: int = 20
 
     @property
     def db_url(self) -> str:

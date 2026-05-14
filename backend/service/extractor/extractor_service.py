@@ -47,6 +47,33 @@ _TIME_RE = re.compile(r"\b(?P<h>\d{1,2})[:.](?P<m>\d{2})\b")
 _DATE_RE = re.compile(r"\b(?P<d>\d{1,2})\.(?P<mo>\d{1,2})(?:\.(?P<y>\d{2,4}))?\b")
 
 
+def _format_context_messages(messages: Sequence[dict]) -> str:
+    """Форматирует контекст для LLM: каждое сообщение — [HH:MM] Имя (@user): текст.
+    Сообщения от владельца помечаются (вы).
+    """
+    lines: list[str] = []
+    for m in messages:
+        first = (m.get("sender_first_name") or "").strip()
+        last = (m.get("sender_last_name") or "").strip()
+        full = " ".join(filter(None, [first, last])).strip()
+        username = m.get("sender_username")
+        if full and username:
+            name = f"{full} (@{username})"
+        elif full:
+            name = full
+        elif username:
+            name = f"@{username}"
+        else:
+            name = "user"
+        if m.get("is_owner"):
+            name = f"{name} (вы)"
+        sent = m.get("sent_at") or ""
+        time_part = sent[11:16] if isinstance(sent, str) and len(sent) >= 16 else ""
+        prefix = f"[{time_part}] " if time_part else ""
+        lines.append(f"{prefix}{name}: {m.get('text','')}")
+    return "\n".join(lines)
+
+
 class ExtractorService:
     """Двухступенчатый pipeline:
        1) classifier (CLASSIFIER_MODEL, дёшево) — есть ли вообще задача?
@@ -190,10 +217,7 @@ class ExtractorService:
 
         try:
             now_iso = now_msk().isoformat()
-            context_text = "\n".join(
-                f"{m.get('sender_username') or 'user'}: {m.get('text','')}"
-                for m in (context_messages or [])
-            )
+            context_text = _format_context_messages(context_messages or [])
             system_prompt = (
                 "Ты — помощник-классификатор задач из чата. Получаешь сообщение и "
                 "контекст из последних 10 сообщений. Ответ — строгий JSON со схемой:"
@@ -291,10 +315,7 @@ class ExtractorService:
         if self._client is None:
             return self._heuristic_classify(text).get("is_task", False)
         try:
-            context_text = "\n".join(
-                f"{m.get('sender_username') or 'user'}: {m.get('text','')}"
-                for m in (context_messages or [])
-            )
+            context_text = _format_context_messages(context_messages or [])
             system = (
                 "Ты — классификатор. Получаешь сообщение и контекст. Решаешь, "
                 "содержит ли оно хотя бы одну задачу/поручение/обещание сделать "
@@ -363,13 +384,13 @@ class ExtractorService:
 
         try:
             now_iso = now_msk().isoformat()
-            context_text = "\n".join(
-                f"{m.get('sender_username') or 'user'}: {m.get('text','')}"
-                for m in (context_messages or [])
-            )
+            context_text = _format_context_messages(context_messages or [])
             system_prompt = (
                 "Ты — экстрактор задач из переписки. Получаешь ОДНО входящее сообщение "
-                "и контекст из последних 10 сообщений того же чата. Извлеки все "
+                "и контекст из последних сообщений того же чата (формат каждой строки: "
+                "[HH:MM] Имя Фамилия (@username) (вы): текст; пометка '(вы)' = это "
+                "владелец задач). Используй контекст чтобы понять смысл местоимений, "
+                "имена упомянутых лиц, документы, суммы, дедлайны. Извлеки все "
                 "самостоятельные задачи и верни строгий JSON: "
                 '{"tasks":[{"title":str,"description":str,"text":str,'
                 '"deadline":ISO8601|null,"priority":"low"|"medium"|"high",'
