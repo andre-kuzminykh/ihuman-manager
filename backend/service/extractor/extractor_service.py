@@ -328,7 +328,11 @@ class ExtractorService:
             )
             return verdict
         except Exception as exc:  # pragma: no cover
-            log.warning("LLM classifier failed: %s — heuristic", exc)
+            log.exception(
+                "LLM classifier FAILED on model=%s — falling back to heuristic. exc=%r",
+                self._classifier_model,
+                exc,
+            )
             return self._heuristic_classify(text).get("is_task", False)
 
     async def extract_multiple(
@@ -408,7 +412,11 @@ class ExtractorService:
             )
             return normalized
         except Exception as exc:  # pragma: no cover
-            log.warning("LLM extract_multiple failed: %s — heuristic fallback", exc)
+            log.exception(
+                "LLM extract_multiple FAILED on model=%s — falling back to heuristic. exc=%r",
+                self._decomposer_model,
+                exc,
+            )
             return self._heuristic_extract_multiple(text)
 
     def _normalize_multi_output(self, data: dict) -> list[dict]:

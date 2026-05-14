@@ -9,7 +9,7 @@ Scenarios: SC012, SC014
 from __future__ import annotations
 
 import html
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 
@@ -19,13 +19,20 @@ from core.loader import get_bot
 
 
 _PRIORITY_EMOJI = {"low": "🟢", "medium": "🟡", "high": "🔴"}
+_MSK = timezone(timedelta(hours=3))
+
+
+def _to_msk(dt: datetime) -> datetime:
+    if dt.tzinfo is None:
+        return dt.replace(tzinfo=timezone.utc).astimezone(_MSK)
+    return dt.astimezone(_MSK)
 
 
 def _fmt(value: str | None) -> str:
     if not value:
         return "—"
     try:
-        return datetime.fromisoformat(value).strftime("%Y-%m-%d · %H:%M")
+        return _to_msk(datetime.fromisoformat(value)).strftime("%Y-%m-%d · %H:%M")
     except ValueError:
         return value
 

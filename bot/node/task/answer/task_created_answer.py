@@ -9,7 +9,7 @@ Scenarios: SC001, SC004, SC006, SC009
 from __future__ import annotations
 
 import html
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
 
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup, Message
 
@@ -17,12 +17,22 @@ from callback.tasks_callback import TaskActionCallback
 from core import vocab
 
 
+_MSK = timezone(timedelta(hours=3))
+
+
+def _to_msk(dt: datetime) -> datetime:
+    if dt.tzinfo is None:
+        # naive — считаем что это UTC, как обычно прилетает из API
+        return dt.replace(tzinfo=timezone.utc).astimezone(_MSK)
+    return dt.astimezone(_MSK)
+
+
 def _fmt_deadline(value: str | None) -> str:
     if not value:
         return "—"
     try:
         dt = datetime.fromisoformat(value)
-        return dt.strftime("%d.%m.%Y %H:%M")
+        return _to_msk(dt).strftime("%d.%m.%Y %H:%M")
     except ValueError:
         return value
 
@@ -124,7 +134,7 @@ def render_task_card(task: dict, *, title_prefix: str | None = None) -> str:
     if deadline:
         try:
             dt = datetime.fromisoformat(deadline)
-            lines.append(f"📅 {dt.strftime('%Y-%m-%d · %H:%M')}")
+            lines.append(f"📅 {_to_msk(dt).strftime('%Y-%m-%d · %H:%M')}")
         except (ValueError, TypeError):
             lines.append(f"📅 {deadline}")
 
