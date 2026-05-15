@@ -52,15 +52,10 @@ def test_screen_title_kb_has_only_back() -> None:
     assert "← Назад" in flat
 
 
-def test_screen_description_kb_has_clear_when_description_present() -> None:
-    _, kb = screen_description(_task())
-    flat = [b.text for row in kb.inline_keyboard for b in row]
-    assert "🗑 Стереть описание" in flat
-    assert "← Назад" in flat
-
-
-def test_screen_description_kb_no_clear_when_description_absent() -> None:
-    _, kb = screen_description(_task(description=None))
-    flat = [b.text for row in kb.inline_keyboard for b in row]
-    assert "🗑 Стереть описание" not in flat
-    assert "← Назад" in flat
+def test_screen_description_kb_only_back() -> None:
+    """Подэкран описания — только «← Назад». Стирание делается текстом/голосом."""
+    for desc in ("есть", None):
+        _, kb = screen_description(_task(description=desc))
+        flat = [b.text for row in kb.inline_keyboard for b in row]
+        assert flat == ["← Назад"]
+        assert "🗑 Стереть описание" not in flat

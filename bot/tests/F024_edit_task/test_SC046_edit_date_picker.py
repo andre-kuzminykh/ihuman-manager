@@ -55,16 +55,14 @@ def test_date_kb_31_day_month_fits_in_5_rows_max() -> None:
     assert len(day_rows) <= 5
 
 
-def test_date_kb_last_row_is_back_and_accept_when_no_deadline() -> None:
-    kb = build_date_kb(7, 2026, 5, 14, has_deadline=False)
-    last = [b.text for b in kb.inline_keyboard[-1]]
-    assert last == ["← Назад", "✅ Применить"]
-
-
-def test_date_kb_last_row_includes_clear_when_has_deadline() -> None:
-    kb = build_date_kb(7, 2026, 5, 14, has_deadline=True)
-    last = [b.text for b in kb.inline_keyboard[-1]]
-    assert last == ["← Назад", "🗑 Снять", "✅ Применить"]
+def test_date_kb_last_row_is_back_and_accept_always() -> None:
+    """Нижний ряд календаря — только «Назад» и «Применить»,
+    независимо от has_deadline. Снять дедлайн — голосом/текстом."""
+    for has_dl in (False, True):
+        kb = build_date_kb(7, 2026, 5, 14, has_deadline=has_dl)
+        last = [b.text for b in kb.inline_keyboard[-1]]
+        assert last == ["← Назад", "✅ Применить"]
+        assert "🗑 Снять" not in last
 
 
 def test_shift_date_month_overflow_keeps_year() -> None:

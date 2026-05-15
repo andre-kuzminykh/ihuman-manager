@@ -37,31 +37,36 @@ def test_main_screen_text_includes_current_fields() -> None:
     assert "голосом" in text.lower()
 
 
-def test_main_kb_layout_with_description_and_deadline() -> None:
+def test_main_kb_layout_compact_5_rows() -> None:
+    """Раскладка после убирания «Стереть описание» / «Снять дедлайн»:
+       ровно 5 рядов независимо от наличия описания/дедлайна.
+    """
     rows = _row_texts(build_main_kb(_task()))
-    # 1) изменить название (full row)
     assert rows[0] == ["📌 Изменить название"]
-    # 2) изменить описание (full row)
     assert rows[1] == ["📝 Изменить описание"]
-    # 3) очистка описания, т.к. есть current description
-    assert rows[2] == ["🗑 Стереть описание"]
-    # 4) дата · время (две кнопки)
-    assert rows[3] == ["📅 Дата", "🕐 Время"]
-    # 5) очистка дедлайна, т.к. есть current deadline
-    assert rows[4] == ["🗑 Снять дедлайн"]
-    # 6) приоритет (три кнопки, текущий — с точкой)
-    prio_row = rows[5]
+    assert rows[2] == ["📅 Дата", "🕐 Время"]
+    prio_row = rows[3]
     assert len(prio_row) == 3
-    assert any("●" in x for x in prio_row)  # current selected highlight
-    # 7) отмена · готово
-    assert rows[-1] == ["🚫 Отмена", "✅ Готово"]
+    assert any("●" in x for x in prio_row)
+    assert rows[4] == ["🚫 Отмена", "✅ Готово"]
+    assert len(rows) == 5
 
 
-def test_main_kb_no_clear_buttons_when_empty() -> None:
-    rows = _row_texts(build_main_kb(_task(description=None, deadline=None)))
-    flat = [b for row in rows for b in row]
-    assert "🗑 Стереть описание" not in flat
-    assert "🗑 Снять дедлайн" not in flat
+def test_main_kb_has_no_clear_buttons_ever() -> None:
+    """Кнопок 🗑 «Стереть описание» / «Снять дедлайн» нет ни при наличии,
+    ни при отсутствии соответствующих полей — очистка только текстом/голосом."""
+    for desc, deadline in [
+        ("есть", "2026-05-14T15:00:00+03:00"),
+        (None, None),
+        ("есть", None),
+        (None, "2026-05-14T15:00:00+03:00"),
+    ]:
+        rows = _row_texts(build_main_kb(_task(description=desc, deadline=deadline)))
+        flat = [b for row in rows for b in row]
+        assert "🗑 Стереть описание" not in flat
+        assert "🗑 Снять дедлайн" not in flat
+        assert "🗑 Стереть" not in flat
+        assert "🗑 Снять" not in flat
 
 
 def test_main_kb_priority_highlight_follows_value() -> None:

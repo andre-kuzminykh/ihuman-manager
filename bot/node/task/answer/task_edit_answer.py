@@ -117,8 +117,6 @@ def render_main(task: dict) -> str:
 def build_main_kb(task: dict) -> InlineKeyboardMarkup:
     tid = task["id"]
     prio = (task.get("priority") or "medium").lower()
-    has_desc = bool(task.get("description"))
-    has_deadline = bool(task.get("deadline"))
 
     def _prio(label_prio: str) -> InlineKeyboardButton:
         is_active = prio == label_prio
@@ -137,52 +135,38 @@ def build_main_kb(task: dict) -> InlineKeyboardMarkup:
                 callback_data=TaskEditCallback(task_id=tid, action="title").pack(),
             )
         ],
-        # Row 2 — описание (+ очистка).
+        # Row 2 — описание.
         [
             InlineKeyboardButton(
                 text="📝 Изменить описание",
                 callback_data=TaskEditCallback(task_id=tid, action="desc").pack(),
             )
         ],
+        # Row 3 — дата · время.
+        [
+            InlineKeyboardButton(
+                text="📅 Дата",
+                callback_data=TaskEditCallback(task_id=tid, action="date").pack(),
+            ),
+            InlineKeyboardButton(
+                text="🕐 Время",
+                callback_data=TaskEditCallback(task_id=tid, action="time").pack(),
+            ),
+        ],
+        # Row 4 — приоритет (тогл).
+        [_prio("low"), _prio("medium"), _prio("high")],
+        # Row 5 — отмена / accept.
+        [
+            InlineKeyboardButton(
+                text="🚫 Отмена",
+                callback_data=TaskEditCallback(task_id=tid, action="cancel").pack(),
+            ),
+            InlineKeyboardButton(
+                text="✅ Готово",
+                callback_data=TaskEditCallback(task_id=tid, action="accept").pack(),
+            ),
+        ],
     ]
-    if has_desc:
-        rows.append([
-            InlineKeyboardButton(
-                text="🗑 Стереть описание",
-                callback_data=TaskEditCallback(task_id=tid, action="clear_desc").pack(),
-            )
-        ])
-    # Row 3 — дата · время.
-    rows.append([
-        InlineKeyboardButton(
-            text="📅 Дата",
-            callback_data=TaskEditCallback(task_id=tid, action="date").pack(),
-        ),
-        InlineKeyboardButton(
-            text="🕐 Время",
-            callback_data=TaskEditCallback(task_id=tid, action="time").pack(),
-        ),
-    ])
-    if has_deadline:
-        rows.append([
-            InlineKeyboardButton(
-                text="🗑 Снять дедлайн",
-                callback_data=TaskEditCallback(task_id=tid, action="clear_deadline").pack(),
-            )
-        ])
-    # Row 4 — приоритет (тогл).
-    rows.append([_prio("low"), _prio("medium"), _prio("high")])
-    # Row 5 — отмена / accept.
-    rows.append([
-        InlineKeyboardButton(
-            text="🚫 Отмена",
-            callback_data=TaskEditCallback(task_id=tid, action="cancel").pack(),
-        ),
-        InlineKeyboardButton(
-            text="✅ Готово",
-            callback_data=TaskEditCallback(task_id=tid, action="accept").pack(),
-        ),
-    ])
     return InlineKeyboardMarkup(inline_keyboard=rows)
 
 
@@ -223,22 +207,18 @@ def render_description(task: dict) -> str:
     )
 
 
-def build_description_kb(task_id: int, has_desc: bool) -> InlineKeyboardMarkup:
-    rows: list[list[InlineKeyboardButton]] = []
-    if has_desc:
-        rows.append([
+def build_description_kb(task_id: int, has_desc: bool = False) -> InlineKeyboardMarkup:
+    """has_desc оставлен ради совместимости сигнатуры — кнопки очистки больше нет.
+    Очистка делается через текст/голос на подэкране ('сотри', 'удали описание').
+    """
+    return InlineKeyboardMarkup(
+        inline_keyboard=[[
             InlineKeyboardButton(
-                text="🗑 Стереть описание",
-                callback_data=TaskEditCallback(task_id=task_id, action="clear_desc").pack(),
+                text="← Назад",
+                callback_data=TaskEditCallback(task_id=task_id, action="main").pack(),
             )
-        ])
-    rows.append([
-        InlineKeyboardButton(
-            text="← Назад",
-            callback_data=TaskEditCallback(task_id=task_id, action="main").pack(),
-        )
-    ])
-    return InlineKeyboardMarkup(inline_keyboard=rows)
+        ]]
+    )
 
 
 # ---------- DATE picker ----------
@@ -280,8 +260,9 @@ def build_date_kb(
       Rows 3..N: дни месяца по 7 в ряд (Telegram inline-row cap = 8,
                  даже для 31-дневных месяцев укладываемся в 5 рядов).
                  Выбранный день — с точкой ●.
-      Row N+1: ← Назад · [🗑 Снять] · ✅ Применить
-                «Снять дедлайн» появляется только если у задачи он есть.
+      Row N+1: ← Назад · ✅ Применить
+    `has_deadline` оставлен в сигнатуре для совместимости — кнопки «Снять»
+    в раскладке больше нет.
     """
     def _cb(action: str, **kw: int) -> str:
         return TaskEditDateCallback(
@@ -316,32 +297,20 @@ def build_date_kb(
             for d in chunk
         ])
 
-    bottom_row: list[InlineKeyboardButton] = [
+    rows.append([
         InlineKeyboardButton(
             text="← Назад",
             callback_data=TaskEditDateCallback(
                 task_id=task_id, action="back", year=year, month=month, day=day
             ).pack(),
-        )
-    ]
-    if has_deadline:
-        bottom_row.append(
-            InlineKeyboardButton(
-                text="🗑 Снять",
-                callback_data=TaskEditDateCallback(
-                    task_id=task_id, action="clear", year=year, month=month, day=day
-                ).pack(),
-            )
-        )
-    bottom_row.append(
+        ),
         InlineKeyboardButton(
             text="✅ Применить",
             callback_data=TaskEditDateCallback(
                 task_id=task_id, action="accept", year=year, month=month, day=day
             ).pack(),
-        )
-    )
-    rows.append(bottom_row)
+        ),
+    ])
     return InlineKeyboardMarkup(inline_keyboard=rows)
 
 
@@ -386,8 +355,8 @@ def build_time_kb(
     """Time-picker:
       Row 1: ← HH →
       Rows 2..7: минуты, 2 столбца × 6 строк = 12 кнопок (00,05,…,55).
-      Row 8: ← Назад · [🗑 Снять] · ✅ Применить
-              «Снять дедлайн» появляется только если у задачи он есть.
+      Row 8: ← Назад · ✅ Применить
+    `has_deadline` сохранён в сигнатуре для совместимости.
     """
     def _cb(action: str, **kw: int) -> str:
         return TaskEditTimeCallback(
@@ -421,32 +390,20 @@ def build_time_kb(
             ),
         ])
 
-    bottom_row: list[InlineKeyboardButton] = [
+    rows.append([
         InlineKeyboardButton(
             text="← Назад",
             callback_data=TaskEditTimeCallback(
                 task_id=task_id, action="back", hour=hour, minute=minute
             ).pack(),
-        )
-    ]
-    if has_deadline:
-        bottom_row.append(
-            InlineKeyboardButton(
-                text="🗑 Снять",
-                callback_data=TaskEditTimeCallback(
-                    task_id=task_id, action="clear", hour=hour, minute=minute
-                ).pack(),
-            )
-        )
-    bottom_row.append(
+        ),
         InlineKeyboardButton(
             text="✅ Применить",
             callback_data=TaskEditTimeCallback(
                 task_id=task_id, action="accept", hour=hour, minute=minute
             ).pack(),
-        )
-    )
-    rows.append(bottom_row)
+        ),
+    ])
     return InlineKeyboardMarkup(inline_keyboard=rows)
 
 
