@@ -1,10 +1,11 @@
 """
 SC049 — сообщение от самого владельца в подписанном чате тоже становится
-задачей (без автора в карточке).
+задачей. Автор владельца **сохраняется** в pending/task (а не обнуляется,
+как было раньше), чтобы на карточке 👤-строка не пропадала.
 
 ## Трассируемость
 Feature: F005
-Scenario: SC049 — owner-writes-to-others.
+Scenario: SC049 — owner-writes-to-others с сохранением автора.
 """
 
 from __future__ import annotations
@@ -62,15 +63,14 @@ async def test_owner_message_creates_pending_without_author(client, monkeypatch)
     body = resp.json()
     assert body["decision"] == "pending_created", body
 
-    # decomposer вызван и получил sender_display=None (self-write)
+    # decomposer вызван и получил реального автора (Owner) — даже для self-write
     assert captured_sender_display, "extractor must be invoked for self-write"
-    assert captured_sender_display[0] is None
+    assert captured_sender_display[0] == "Owner"
 
-    # Pending без блока автора
+    # Pending с заполненным автором — на карточке появится 👤
     pending_id = body["pending_task_id"]
     p = await client.get(f"/api/v1/pending-tasks/{pending_id}")
     assert p.status_code == 200
     p_body = p.json()
-    assert p_body.get("source_sender") in (None, "")
-    assert p_body.get("source_sender_display") in (None, "")
-    assert p_body.get("source_sender_user_id") in (None, 0)
+    assert p_body.get("source_sender_display") == "Owner"
+    assert p_body.get("source_sender_user_id") == owner_user_id

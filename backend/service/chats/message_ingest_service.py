@@ -163,12 +163,12 @@ class MessageIngestService:
             payload.sender_user_id is not None
             and payload.sender_user_id == sub.owner_user_id
         )
-        # При self-write автора не показываем нигде — ни в карточке, ни в LLM.
-        if is_self_write:
-            sender_display = None
-            sender_username_to_store: str | None = None
-        else:
-            sender_username_to_store = payload.sender_username
+        # Автор виден всегда — даже когда это сам владелец, который пишет
+        # себе или делегирует. Раньше при is_self_write мы обнуляли
+        # sender_display, и пользователь видел задачу без 👤-строки и
+        # называл это «потерял человека». Теперь автор пишется в task
+        # как есть. F005 SC051.
+        sender_username_to_store = payload.sender_username
         log.info(
             "INGEST sender_display=%r is_self_write=%s",
             sender_display,
@@ -196,7 +196,7 @@ class MessageIngestService:
                 extracted=extracted,
                 chat_id=payload.chat_id,
                 source_message_id=payload.message_id,
-                source_sender_user_id=payload.sender_user_id if not is_self_write else None,
+                source_sender_user_id=payload.sender_user_id,
                 source_sender_username=sender_username_to_store,
                 source_sender_display=sender_display,
                 source_chat_username=payload.chat_username,
@@ -234,7 +234,7 @@ class MessageIngestService:
                 owner_user_id=sub.owner_user_id,
                 source_text=payload.text,
                 source_sender=sender_username_to_store,
-                source_sender_user_id=payload.sender_user_id if not is_self_write else None,
+                source_sender_user_id=payload.sender_user_id,
                 source_sender_display=sender_display,
                 source_chat_username=payload.chat_username,
                 draft=draft,

@@ -78,16 +78,24 @@ async def on_manual_task(message: Message, command: CommandObject) -> None:
                 f"⚠️ Направление '{direction_name}' не найдено — задача создана без него."
             )
 
+    user = message.from_user
+    full = " ".join(filter(None, [user.first_name, user.last_name])).strip() if user else ""
+    sender_display = full or (
+        f"@{user.username}" if user and user.username else None
+    )
     api = TasksAPI()
     try:
         task = await api.create(
-            user_id=message.from_user.id,
+            user_id=user.id,
             text=title,
             title=title,
             deadline=deadline,
             direction_id=direction_id,
             force=True,  # BR031 — ручной ввод пропускает дедуп
             source_kind="manual",
+            source_sender_user_id=user.id if user else None,
+            source_sender_username=user.username if user else None,
+            source_sender_display=sender_display,
         )
     except APIError as exc:
         await message.answer(f"❌ {exc.message}")

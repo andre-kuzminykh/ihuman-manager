@@ -28,6 +28,9 @@ class NewTaskCode:
                 text=text,
                 source_kind=trigger_data.get("source_kind", "text"),
                 force=bool(trigger_data.get("force", False)),
+                source_sender_user_id=trigger_data.get("sender_user_id"),
+                source_sender_username=trigger_data.get("sender_username"),
+                source_sender_display=trigger_data.get("sender_display"),
             )
         except APIError as exc:
             return {"answer_name": "task_empty_error", "data": {"message": exc.message}}

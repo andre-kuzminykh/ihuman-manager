@@ -31,6 +31,10 @@ class BatchCreateSchema(BaseModel):
     text: str = Field(..., min_length=1, max_length=10000)
     chat_id: int | None = None
     source_message_id: int | None = None
+    source_sender_user_id: int | None = None
+    source_sender_username: str | None = None
+    source_sender_display: str | None = None
+    source_chat_username: str | None = None
     source_kind: TaskSource = TaskSource.TEXT
     force: bool = False
     context_messages: list[dict] = []
@@ -57,6 +61,10 @@ async def create_batch(
         extracted=extracted,
         chat_id=data.chat_id,
         source_message_id=data.source_message_id,
+        source_sender_user_id=data.source_sender_user_id,
+        source_sender_username=data.source_sender_username,
+        source_sender_display=data.source_sender_display,
+        source_chat_username=data.source_chat_username,
         source_kind=data.source_kind,
         force=data.force,
     )

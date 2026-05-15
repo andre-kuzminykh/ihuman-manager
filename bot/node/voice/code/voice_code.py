@@ -38,7 +38,12 @@ class VoiceCode:
             return {"answer_name": "voice_failed", "data": {}}
         try:
             result = await self._tasks_api.create_batch(
-                user_id=trigger_data["user_id"], text=text, source_kind="voice"
+                user_id=trigger_data["user_id"],
+                text=text,
+                source_kind="voice",
+                source_sender_user_id=trigger_data.get("sender_user_id"),
+                source_sender_username=trigger_data.get("sender_username"),
+                source_sender_display=trigger_data.get("sender_display"),
             )
         except APIError as exc:
             return {"answer_name": "voice_failed", "data": {"message": exc.message}}

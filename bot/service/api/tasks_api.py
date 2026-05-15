@@ -22,6 +22,10 @@ class TasksAPI(BaseAPI):
         text: str,
         chat_id: int | None = None,
         source_message_id: int | None = None,
+        source_sender_user_id: int | None = None,
+        source_sender_username: str | None = None,
+        source_sender_display: str | None = None,
+        source_chat_username: str | None = None,
         source_kind: str = "text",
         title: str | None = None,
         deadline: datetime | None = None,
@@ -38,6 +42,14 @@ class TasksAPI(BaseAPI):
             body["chat_id"] = chat_id
         if source_message_id is not None:
             body["source_message_id"] = source_message_id
+        if source_sender_user_id is not None:
+            body["source_sender_user_id"] = source_sender_user_id
+        if source_sender_username is not None:
+            body["source_sender_username"] = source_sender_username
+        if source_sender_display is not None:
+            body["source_sender_display"] = source_sender_display
+        if source_chat_username is not None:
+            body["source_chat_username"] = source_chat_username
         if title:
             body["title"] = title
         if deadline:
@@ -53,6 +65,10 @@ class TasksAPI(BaseAPI):
         text: str,
         chat_id: int | None = None,
         source_message_id: int | None = None,
+        source_sender_user_id: int | None = None,
+        source_sender_username: str | None = None,
+        source_sender_display: str | None = None,
+        source_chat_username: str | None = None,
         source_kind: str = "text",
         force: bool = False,
         context_messages: list[dict] | None = None,
@@ -69,6 +85,14 @@ class TasksAPI(BaseAPI):
             body["chat_id"] = chat_id
         if source_message_id is not None:
             body["source_message_id"] = source_message_id
+        if source_sender_user_id is not None:
+            body["source_sender_user_id"] = source_sender_user_id
+        if source_sender_username is not None:
+            body["source_sender_username"] = source_sender_username
+        if source_sender_display is not None:
+            body["source_sender_display"] = source_sender_display
+        if source_chat_username is not None:
+            body["source_chat_username"] = source_chat_username
         return await self._request("POST", "/tasks/batch", json=body)
 
     async def list(

@@ -34,9 +34,15 @@ class VoiceTrigger:
         bot = get_bot()
         buffer = BytesIO()
         await bot.download(media, destination=buffer)
+        user = message.from_user
+        full = " ".join(filter(None, [user.first_name, user.last_name])).strip()
+        sender_display = full or (f"@{user.username}" if user.username else None)
         return {
-            "user_id": message.from_user.id,
+            "user_id": user.id,
             "audio_bytes": buffer.getvalue(),
             "duration": getattr(media, "duration", 0) or 0,
             "file_name": file_name,
+            "sender_user_id": user.id,
+            "sender_username": user.username,
+            "sender_display": sender_display,
         }

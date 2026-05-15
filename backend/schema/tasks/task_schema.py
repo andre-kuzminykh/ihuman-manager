@@ -21,6 +21,10 @@ class TaskCreateSchema(BaseModel):
     text: str = Field(..., min_length=1, max_length=5000)
     chat_id: int | None = None
     source_message_id: int | None = None
+    source_sender_user_id: int | None = None
+    source_sender_username: str | None = None
+    source_sender_display: str | None = None
+    source_chat_username: str | None = None
     source_kind: TaskSource = TaskSource.TEXT
     title: str | None = None
     description: str | None = None
