@@ -67,16 +67,51 @@ def render_main(task: dict) -> str:
     prio = (task.get("priority") or "medium").lower()
     prio_label = _PRIORITY_LABEL.get(prio, _PRIORITY_LABEL["medium"])
     deadline_line = _fmt_deadline(task.get("deadline"))
-    return (
-        "✏️ <b>Редактирование задачи</b>\n\n"
-        f"📌 <b>{title}</b>\n"
-        f"📝 {desc_line}\n"
-        f"📅 {deadline_line}\n"
-        f"{prio_label}\n\n"
-        "Можно поменять любое поле кнопкой ниже,\n"
-        "или просто отправь <b>текстом</b>, <b>голосом</b> или <b>кружком</b> —\n"
-        "разберу естественный язык."
+
+    # Заголовок: если есть source_url — делаем кликабельным, иначе просто bold.
+    from node.task.answer.task_created_answer import _source_url
+    src_url = _source_url(task)
+    title_html = (
+        f'<a href="{src_url}"><b>{title}</b></a>' if src_url else f"<b>{title}</b>"
     )
+
+    # Автор — отдельная строка с гиперссылкой на профиль (tg://user?id=)
+    # или username. Self-write — пусто. Полностью совпадает с render_task_card.
+    author_line: str | None = None
+    sender_display = task.get("source_sender_display")
+    sender_user_id = task.get("source_sender_user_id")
+    sender_username = task.get("source_sender_username")
+    if sender_display:
+        if sender_user_id:
+            author_href = f"tg://user?id={sender_user_id}"
+        elif sender_username:
+            author_href = f"https://t.me/{sender_username}"
+        else:
+            author_href = None
+        if author_href:
+            author_line = (
+                f'👤 <a href="{author_href}">{html.escape(sender_display)}</a>'
+            )
+        else:
+            author_line = f"👤 {html.escape(sender_display)}"
+
+    lines = [
+        "✏️ <b>Редактирование задачи</b>",
+        "",
+        f"📌 {title_html}",
+    ]
+    if author_line:
+        lines.append(author_line)
+    lines.extend([
+        f"📝 {desc_line}",
+        f"📅 {deadline_line}",
+        f"{prio_label}",
+        "",
+        "Можно поменять любое поле кнопкой ниже,",
+        "или просто отправь <b>текстом</b>, <b>голосом</b> или <b>кружком</b> —",
+        "разберу естественный язык.",
+    ])
+    return "\n".join(lines)
 
 
 def build_main_kb(task: dict) -> InlineKeyboardMarkup:

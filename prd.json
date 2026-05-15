@@ -1739,6 +1739,10 @@
         {
           "rule_id": "BR073",
           "description": "Глобальные catch-all виджеты создания задач (F001/F002) применяют StateFilter(default_state), чтобы FSM-bound text/voice во время редактирования не попадали к ним."
+        },
+        {
+          "rule_id": "BR076",
+          "description": "Экран редактирования (render_main) обязан рендерить те же гиперссылки, что и карточка задачи (render_task_card): (а) заголовок 📌 — кликабельный, если у задачи известно исходное сообщение (t.me/c/<id>/<msg> для супергрупп или t.me/<username>/<msg>); (б) строка автора 👤 — кликабельная на профиль `tg://user?id=<source_sender_user_id>` или, если id нет, на `https://t.me/<source_sender_username>`. При self-write (source_sender_display=None) строка 👤 не выводится. Имя экранируется html.escape."
         }
       ],
       "acceptance_criteria": [
@@ -1799,6 +1803,21 @@
             "when": "Шлю 'поменяй приоритет на высокий'",
             "then": "POST /tasks/{id}/llm-edit с инструкцией; карточка перерисована с priority=high",
             "and_postconditions": []
+          }
+        },
+        {
+          "scenario_id": "SC050",
+          "user_story": "Карточка задачи и экран её редактирования всегда показывают гиперссылку на автора и кликабельный заголовок, если у задачи известны эти поля.",
+          "bdd": {
+            "given": "Задача из группового чата с source_sender_display='Анна Иванова', source_sender_user_id=123456, source_chat_username='team_chat' (или chat_id супергруппы) и source_message_id=42",
+            "and_preconditions": [],
+            "when": "Бот рендерит карточку (render_task_card) и/или экран редактирования (render_main)",
+            "then": "Текст содержит строку '👤 <a href=\"tg://user?id=123456\">Анна Иванова</a>' и заголовок '📌 <a href=\"https://t.me/c/<id>/42\"><b>…</b></a>'",
+            "and_postconditions": [
+              "При self-write (source_sender_display=None) строка 👤 не рендерится",
+              "Если source_sender_user_id отсутствует — fallback на https://t.me/<source_sender_username>",
+              "Имя автора экранируется html.escape (нет HTML-инъекций)"
+            ]
           }
         }
       ],
